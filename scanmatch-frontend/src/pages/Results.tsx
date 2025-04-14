@@ -183,7 +183,7 @@ const Results = () => {
           improvements: savedAnalysis.structure_improvements
         },
         jobTitle: savedAnalysis.job_title || "Resume Analysis",
-        improvement_suggestions: data.improvement_suggestions || []
+        improvement_suggestions: savedAnalysis.improvement_suggestions || []
       });
     } else if (!analysisId && !isLoadingAnalysis) {
       const storedAnalysis = sessionStorage.getItem('resumeAnalysis');
