@@ -188,24 +188,25 @@ const Results = () => {
   const { data: savedAnalysis, isLoading: isLoadingAnalysis } = useQuery({
     queryKey: ['resumeAnalysis', analysisId],
     queryFn: () => analysisId ? getResumeAnalysis(analysisId) : null,
-    enabled: !!analysisId,
-    onSuccess: (data) => {
-      if (data) {
-        setMatchData({
-          score: data.score,
-          keywords: {
-            found: data.keywords_found,
-            missing: data.keywords_missing
-          },
-          structure: {
-            strengths: data.structure_strengths,
-            improvements: data.structure_improvements
-          },
-          jobTitle: data.job_title || "Resume Analysis"
-        });
-      }
-    }
+    enabled: !!analysisId
   });
+
+  useEffect(() => {
+    if (savedAnalysis) {
+      setMatchData({
+        score: savedAnalysis.score,
+        keywords: {
+          found: savedAnalysis.keywords_found,
+          missing: savedAnalysis.keywords_missing
+        },
+        structure: {
+          strengths: savedAnalysis.structure_strengths,
+          improvements: savedAnalysis.structure_improvements
+        },
+        jobTitle: savedAnalysis.job_title || "Resume Analysis"
+      });
+    }
+  }, [savedAnalysis]);
 
   const handleSaveAnalysis = async () => {
     if (!user) {
@@ -495,8 +496,8 @@ const Results = () => {
               
               <Card className="mt-8 bg-gray-50 border-gray-200 shadow-sm">
                 <CardContent className="pt-6">
-                  <div className="flex items-center mb-4">
-                    <div className="mr-4">
+                  <div className="text-center space-y-4">
+                    <div className="flex justify-center">
                       <div className="bg-white w-12 h-12 rounded-full flex items-center justify-center text-gray-600 font-medium border">
                         MM
                       </div>
