@@ -8,6 +8,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { File, Upload } from "lucide-react";
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
+import { toast } from "@/components/ui/sonner";
 
 const Scan = () => {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -25,6 +26,7 @@ const Scan = () => {
       if (file.type === 'application/pdf' || file.type === 'text/plain') {
         setResumeFile(file);
         setError('');
+        toast.success(`Resume "${file.name}" uploaded successfully`);
       } else {
         setError('Please upload a PDF or text file');
         setResumeFile(null);
@@ -147,7 +149,7 @@ const Scan = () => {
                   className="bg-scanmatch-600 hover:bg-scanmatch-700"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Analyzing...' : 'Scan My Resume'}
+                  {isLoading ? 'Analyzing...' : 'Analyze & Score Resume'}
                 </Button>
               </div>
             </form>
