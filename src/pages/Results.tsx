@@ -1,52 +1,18 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Check, ChevronDown, ChevronUp, File, Star, XCircle, Zap, Search, LayoutTemplate, Sparkles, Lock, Save } from "lucide-react";
+import { AlertCircle, Check, ChevronDown, ChevronUp, File, Star, XCircle, Zap, Search, LayoutTemplate, Sparkles, Lock, Save, Loader2 } from "lucide-react";
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from "@/hooks/useAuth";
+import { saveResumeAnalysis, getResumeAnalysis, ResumeAnalysis } from "@/lib/supabaseClient";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 
-// Simulated data (would normally come from API)
-const matchData = {
-  score: 78,
-  keywords: {
-    found: [
-      "project management",
-      "team leadership",
-      "stakeholder communication",
-      "agile methodology",
-      "budget management",
-      "presentation skills"
-    ],
-    missing: [
-      "data analysis",
-      "SQL",
-      "Power BI",
-      "risk management",
-      "PMP certification"
-    ]
-  },
-  structure: {
-    strengths: [
-      "Appropriate resume length (1 page)",
-      "Clear contact information",
-      "Well-organized education section",
-      "Good use of action verbs"
-    ],
-    improvements: [
-      "Add a dedicated skills section",
-      "More quantifiable achievements needed",
-      "Consider adding certifications section",
-      "Work experience bullet points are too long"
-    ]
-  }
-};
-
-// Chat component
 const AIResumeCoach = () => {
   const [messages, setMessages] = useState([
     { 
@@ -156,7 +122,6 @@ const AIResumeCoach = () => {
   );
 };
 
-// Collapsible section component
 const CollapsibleSection = ({ title, icon, children }: { title: string, icon: React.ReactNode, children: React.ReactNode }) => {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -178,6 +143,126 @@ const CollapsibleSection = ({ title, icon, children }: { title: string, icon: Re
 };
 
 const Results = () => {
+  const [searchParams] = useSearchParams();
+  const analysisId = searchParams.get('id');
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [matchData, setMatchData] = useState({
+    score: 78,
+    keywords: {
+      found: [
+        "project management",
+        "team leadership",
+        "stakeholder communication",
+        "agile methodology",
+        "budget management",
+        "presentation skills"
+      ],
+      missing: [
+        "data analysis",
+        "SQL",
+        "Power BI",
+        "risk management",
+        "PMP certification"
+      ]
+    },
+    structure: {
+      strengths: [
+        "Appropriate resume length (1 page)",
+        "Clear contact information",
+        "Well-organized education section",
+        "Good use of action verbs"
+      ],
+      improvements: [
+        "Add a dedicated skills section",
+        "More quantifiable achievements needed",
+        "Consider adding certifications section",
+        "Work experience bullet points are too long"
+      ]
+    },
+    jobTitle: "Project Manager"
+  });
+
+  const { data: savedAnalysis, isLoading: isLoadingAnalysis } = useQuery({
+    queryKey: ['resumeAnalysis', analysisId],
+    queryFn: () => analysisId ? getResumeAnalysis(analysisId) : null,
+    enabled: !!analysisId,
+    onSuccess: (data) => {
+      if (data) {
+        setMatchData({
+          score: data.score,
+          keywords: {
+            found: data.keywords_found,
+            missing: data.keywords_missing
+          },
+          structure: {
+            strengths: data.structure_strengths,
+            improvements: data.structure_improvements
+          },
+          jobTitle: data.job_title || "Resume Analysis"
+        });
+      }
+    }
+  });
+
+  const handleSaveAnalysis = async () => {
+    if (!user) {
+      toast({
+        title: "Login required",
+        description: "Please sign up or log in to save your analysis",
+      });
+      navigate('/signup');
+      return;
+    }
+
+    setSaving(true);
+    
+    try {
+      const analysisData: Omit<ResumeAnalysis, 'id' | 'created_at'> = {
+        user_id: user.id,
+        score: matchData.score,
+        keywords_found: matchData.keywords.found,
+        keywords_missing: matchData.keywords.missing,
+        structure_strengths: matchData.structure.strengths,
+        structure_improvements: matchData.structure.improvements,
+        job_title: matchData.jobTitle
+      };
+      
+      await saveResumeAnalysis(analysisData);
+      
+      toast({
+        title: "Analysis saved",
+        description: "Your resume analysis has been saved to your profile",
+      });
+      
+    } catch (error: any) {
+      toast({
+        title: "Error saving analysis",
+        description: error.message || "An error occurred while saving your analysis",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (isLoadingAnalysis) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <NavBar />
+        <main className="flex-grow py-12 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-10 w-10 text-scanmatch-600 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Loading analysis...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
@@ -193,7 +278,6 @@ const Results = () => {
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
-              {/* Score Card */}
               <Card className="shadow-md border-scanmatch-100">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-xl font-semibold">Your Match Score</CardTitle>
@@ -237,7 +321,6 @@ const Results = () => {
                 </CardContent>
               </Card>
               
-              {/* Keywords Section */}
               <CollapsibleSection 
                 title="Keyword Analysis" 
                 icon={<Search className="h-5 w-5 text-scanmatch-600" />}
@@ -281,7 +364,6 @@ const Results = () => {
                 </div>
               </CollapsibleSection>
               
-              {/* Structure Section */}
               <CollapsibleSection 
                 title="Formatting Suggestions" 
                 icon={<LayoutTemplate className="h-5 w-5 text-scanmatch-600" />}
@@ -321,7 +403,6 @@ const Results = () => {
                 </div>
               </CollapsibleSection>
               
-              {/* Improvement Opportunities */}
               <CollapsibleSection 
                 title="Improvement Opportunities" 
                 icon={<Sparkles className="h-5 w-5 text-scanmatch-600" />}
@@ -351,7 +432,6 @@ const Results = () => {
                 </div>
               </CollapsibleSection>
               
-              {/* CTA */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card className="bg-scanmatch-50 border-scanmatch-200 shadow-md">
                   <CardContent className="pt-6">
@@ -378,22 +458,41 @@ const Results = () => {
                       </div>
                       <h3 className="text-xl font-semibold text-gray-800">Save This Analysis</h3>
                       <p className="text-gray-700">
-                        Create a free account to save this analysis and track your progress
+                        {user ? 'Save this analysis to your profile to track your progress' : 'Create a free account to save this analysis and track your progress'}
                       </p>
-                      <Button variant="outline" className="w-full border-scanmatch-200 text-scanmatch-700 hover:bg-scanmatch-50">
-                        <Link to="/signup">Save Analysis</Link>
+                      <Button 
+                        variant={user ? "default" : "outline"} 
+                        className={user ? "w-full bg-scanmatch-600 hover:bg-scanmatch-700" : "w-full border-scanmatch-200 text-scanmatch-700 hover:bg-scanmatch-50"}
+                        onClick={user ? handleSaveAnalysis : () => navigate('/signup')}
+                        disabled={saving}
+                      >
+                        {user ? (
+                          saving ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>Save Analysis</>
+                          )
+                        ) : (
+                          <Link to="/signup">Create Account</Link>
+                        )}
                       </Button>
+                      {user && (
+                        <Button variant="outline" className="w-full" onClick={() => navigate('/profile')}>
+                          View My Analyses
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               </div>
             </div>
             
-            {/* Resume Coach */}
             <div className="lg:col-span-1">
               <AIResumeCoach />
               
-              {/* Testimonial */}
               <Card className="mt-8 bg-gray-50 border-gray-200 shadow-sm">
                 <CardContent className="pt-6">
                   <div className="flex items-center mb-4">
@@ -418,7 +517,6 @@ const Results = () => {
                 </CardContent>
               </Card>
               
-              {/* Usage Stats */}
               <Card className="mt-4 border border-scanmatch-100 bg-white shadow-sm">
                 <CardContent className="pt-6">
                   <h4 className="font-semibold text-center mb-4">Trusted by Job Seekers</h4>
