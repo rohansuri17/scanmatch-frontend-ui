@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +11,13 @@ import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { saveResumeAnalysis } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import workerSrc from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
+
+GlobalWorkerOptions.workerSrc = workerSrc;
+
+
+
 
 const Scan = () => {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -25,8 +31,6 @@ const Scan = () => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const file = files[0];
-      
-      // Check if file is PDF or text
       if (file.type === 'application/pdf' || file.type === 'text/plain') {
         setResumeFile(file);
         setError('');
@@ -37,60 +41,84 @@ const Scan = () => {
       }
     }
   };
-
+  
   const readFileAsText = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       if (file.type === 'text/plain') {
         const reader = new FileReader();
-        reader.onload = (e) => {
-          resolve(e.target?.result as string);
-        };
+        reader.onload = (e) => resolve(e.target?.result as string);
         reader.onerror = reject;
         reader.readAsText(file);
       } else if (file.type === 'application/pdf') {
-        // For simplicity, we'll return the filename for PDF files
-        // In a production app, you would use a PDF parsing library
-        resolve(`Resume file: ${file.name} (PDF content would be extracted)`);
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const typedArray = new Uint8Array(e.target?.result as ArrayBuffer);
+            const pdf = await getDocument({ data: typedArray }).promise;
+  
+            let fullText = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const content = await page.getTextContent();
+              const text = content.items.map((item: any) => item.str).join(' ');
+              fullText += text + '\n';
+            }
+  
+            resolve(fullText.trim());
+          } catch (err) {
+            reject(err);
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
       } else {
         reject(new Error('Unsupported file type'));
       }
     });
   };
+  
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!resumeFile) {
       setError('Please upload your resume');
       return;
     }
-    
     if (!jobDescription.trim()) {
       setError('Please enter a job description');
       return;
     }
-    
     setIsLoading(true);
     setError('');
-    
     try {
-      // Read the file content
       const resumeText = await readFileAsText(resumeFile);
-      
-      // Call the Supabase edge function to analyze the resume
       const { data, error: functionError } = await supabase.functions.invoke('resume-scan', {
         body: { resumeText, jobDescription },
       });
-      
-      if (functionError) {
-        throw new Error(functionError.message || 'Error analyzing resume');
+
+      if (functionError || !data) {
+        throw new Error(functionError?.message || 'Error analyzing resume');
       }
-      
-      if (!data) {
-        throw new Error('No data returned from analysis');
+
+      console.log("🔎 Validating GPT structure:");
+      console.log("→ typeof data:", typeof data);
+      console.log("→ data.keywords:", data.keywords);
+      console.log("→ data.keywords.found:", data.keywords?.found);
+      console.log("→ data.structure:", data.structure);
+      console.log("→ data.structure.strengths:", data.structure?.strengths);
+
+      if (
+        !data ||
+        typeof data !== 'object' ||
+        !data.keywords ||
+        !Array.isArray(data.keywords.found) ||
+        !data.structure ||
+        !Array.isArray(data.structure.strengths)
+      ) {
+        throw new Error("Invalid analysis structure returned from Edge Function");
       }
-      
-      // Save the analysis if user is logged in
+
       if (user) {
         const analysisData = {
           user_id: user.id,
@@ -99,13 +127,12 @@ const Scan = () => {
           keywords_missing: data.keywords.missing.map(k => k.word),
           structure_strengths: data.structure.strengths,
           structure_improvements: data.structure.improvements,
-          job_title: data.job_title
+          job_title: data.job_title,
+          improvement_suggestions: data.improvement_suggestions || []
         };
-        
         const savedAnalysis = await saveResumeAnalysis(analysisData);
         navigate(`/results?id=${savedAnalysis.id}`);
       } else {
-        // Store in session storage for anonymous users
         sessionStorage.setItem('resumeAnalysis', JSON.stringify(data));
         navigate('/results');
       }
@@ -123,7 +150,6 @@ const Scan = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
-      
       <main className="flex-grow py-12">
         <div className="container-custom">
           <div className="max-w-3xl mx-auto">
@@ -133,23 +159,19 @@ const Scan = () => {
                 Upload your resume and paste the job description to get a detailed match analysis
               </p>
             </div>
-            
             {error && (
               <Alert variant="destructive" className="mb-6">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
             <form onSubmit={handleSubmit}>
               <Card className="mb-6">
                 <CardHeader>
                   <CardTitle>Upload Resume</CardTitle>
-                  <CardDescription>
-                    Upload your resume in PDF or text format
-                  </CardDescription>
+                  <CardDescription>Upload your resume in PDF or text format</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div 
+                  <div
                     className={`p-6 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer
                       ${resumeFile ? 'border-scanmatch-500 bg-scanmatch-50' : 'border-gray-200 hover:border-scanmatch-500 hover:bg-gray-50'}`}
                     onClick={() => document.getElementById('resume-upload')?.click()}
@@ -169,17 +191,16 @@ const Scan = () => {
                         <p className="text-sm text-gray-400 mt-1">PDF or text files only</p>
                       </>
                     )}
-                    <input 
+                    <input
                       id="resume-upload"
-                      type="file" 
-                      accept=".pdf,.txt" 
-                      className="hidden" 
+                      type="file"
+                      accept=".pdf,.txt"
+                      className="hidden"
                       onChange={handleFileChange}
                     />
                   </div>
                 </CardContent>
               </Card>
-              
               <Card className="mb-6">
                 <CardHeader>
                   <CardTitle>Job Description</CardTitle>
@@ -188,25 +209,20 @@ const Scan = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Textarea 
-                    placeholder="Paste job description here..." 
+                  <Textarea
+                    placeholder="Paste job description here..."
                     className="min-h-[200px]"
                     value={jobDescription}
                     onChange={(e) => setJobDescription(e.target.value)}
                   />
                 </CardContent>
               </Card>
-              
               <div className="flex flex-col sm:flex-row gap-4 justify-end">
-                <Button 
-                  variant="outline" 
-                  type="button"
-                  asChild
-                >
+                <Button variant="outline" type="button" asChild>
                   <Link to="/">Cancel</Link>
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="bg-scanmatch-600 hover:bg-scanmatch-700"
                   disabled={isLoading}
                 >
@@ -224,7 +240,6 @@ const Scan = () => {
           </div>
         </div>
       </main>
-      
       <Footer />
     </div>
   );

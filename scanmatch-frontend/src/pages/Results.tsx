@@ -159,7 +159,9 @@ const Results = () => {
       strengths: [],
       improvements: []
     },
-    jobTitle: ""
+    jobTitle: "",
+    improvement_suggestions: [],
+
   });
 
   const { data: savedAnalysis, isLoading: isLoadingAnalysis } = useQuery({
@@ -180,7 +182,8 @@ const Results = () => {
           strengths: savedAnalysis.structure_strengths,
           improvements: savedAnalysis.structure_improvements
         },
-        jobTitle: savedAnalysis.job_title || "Resume Analysis"
+        jobTitle: savedAnalysis.job_title || "Resume Analysis",
+        improvement_suggestions: data.improvement_suggestions || []
       });
     } else if (!analysisId && !isLoadingAnalysis) {
       const storedAnalysis = sessionStorage.getItem('resumeAnalysis');
@@ -197,7 +200,8 @@ const Results = () => {
               strengths: parsedAnalysis.structure.strengths,
               improvements: parsedAnalysis.structure.improvements
             },
-            jobTitle: parsedAnalysis.job_title || "Resume Analysis"
+            jobTitle: parsedAnalysis.job_title || "Resume Analysis",
+            improvement_suggestions: parsedAnalysis.improvement_suggestions || []
           });
         } catch (error) {
           console.error('Error parsing stored analysis:', error);
@@ -424,33 +428,24 @@ const Results = () => {
                 </div>
               </CollapsibleSection>
               
-              <CollapsibleSection 
-                title="Improvement Opportunities" 
-                icon={<Sparkles className="h-5 w-5 text-scanmatch-600" />}
-              >
-                <div className="space-y-4">
-                  <p className="text-gray-700">
-                    Based on our analysis, here are personalized improvement opportunities for your resume:
-                  </p>
-                  <ul className="space-y-3">
-                    <li className="flex items-start p-2 bg-blue-50 rounded-md">
-                      <span className="font-medium mr-2">1.</span>
-                      <span>Add a dedicated Skills section that includes the missing keywords we identified.</span>
+              <CollapsibleSection title="Improvement Opportunities" icon={<Sparkles className="h-5 w-5 text-scanmatch-600" />}>
+            <div className="space-y-4">
+              <p className="text-gray-700">
+                Based on our analysis, here are personalized improvement opportunities for your resume:
+              </p>
+              <ul className="space-y-3">
+                {matchData.improvement_suggestions.length > 0 ? (
+                  matchData.improvement_suggestions.map((tip, idx) => (
+                    <li key={idx} className="flex items-start p-2 bg-blue-50 rounded-md">
+                      <span className="font-medium mr-2">{idx + 1}.</span>
+                      <span>{tip}</span>
                     </li>
-                    <li className="flex items-start p-2 bg-blue-50 rounded-md">
-                      <span className="font-medium mr-2">2.</span>
-                      <span>Include more quantifiable achievements in your work experience section.</span>
-                    </li>
-                    <li className="flex items-start p-2 bg-blue-50 rounded-md">
-                      <span className="font-medium mr-2">3.</span>
-                      <span>Shorten your work experience bullet points - aim for 1-2 lines each.</span>
-                    </li>
-                    <li className="flex items-start p-2 bg-blue-50 rounded-md">
-                      <span className="font-medium mr-2">4.</span>
-                      <span>Add any relevant certifications to strengthen your qualifications.</span>
-                    </li>
-                  </ul>
-                </div>
+                  ))
+                ) : (
+                  <li className="text-gray-500 italic">No suggestions available.</li>
+                )}
+              </ul>
+            </div>
               </CollapsibleSection>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
