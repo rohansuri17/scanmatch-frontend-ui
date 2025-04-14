@@ -150,39 +150,16 @@ const Results = () => {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [matchData, setMatchData] = useState({
-    score: 78,
+    score: 0,
     keywords: {
-      found: [
-        "project management",
-        "team leadership",
-        "stakeholder communication",
-        "agile methodology",
-        "budget management",
-        "presentation skills"
-      ],
-      missing: [
-        "data analysis",
-        "SQL",
-        "Power BI",
-        "risk management",
-        "PMP certification"
-      ]
+      found: [],
+      missing: []
     },
     structure: {
-      strengths: [
-        "Appropriate resume length (1 page)",
-        "Clear contact information",
-        "Well-organized education section",
-        "Good use of action verbs"
-      ],
-      improvements: [
-        "Add a dedicated skills section",
-        "More quantifiable achievements needed",
-        "Consider adding certifications section",
-        "Work experience bullet points are too long"
-      ]
+      strengths: [],
+      improvements: []
     },
-    jobTitle: "Project Manager"
+    jobTitle: ""
   });
 
   const { data: savedAnalysis, isLoading: isLoadingAnalysis } = useQuery({
@@ -196,8 +173,8 @@ const Results = () => {
       setMatchData({
         score: savedAnalysis.score,
         keywords: {
-          found: savedAnalysis.keywords_found,
-          missing: savedAnalysis.keywords_missing
+          found: savedAnalysis.keywords_found.map(word => ({ word, category: 'unknown' })),
+          missing: savedAnalysis.keywords_missing.map(word => ({ word, category: 'unknown' }))
         },
         structure: {
           strengths: savedAnalysis.structure_strengths,
@@ -205,8 +182,29 @@ const Results = () => {
         },
         jobTitle: savedAnalysis.job_title || "Resume Analysis"
       });
+    } else if (!analysisId && !isLoadingAnalysis) {
+      const storedAnalysis = sessionStorage.getItem('resumeAnalysis');
+      if (storedAnalysis) {
+        try {
+          const parsedAnalysis = JSON.parse(storedAnalysis);
+          setMatchData({
+            score: parsedAnalysis.score,
+            keywords: {
+              found: parsedAnalysis.keywords.found,
+              missing: parsedAnalysis.keywords.missing
+            },
+            structure: {
+              strengths: parsedAnalysis.structure.strengths,
+              improvements: parsedAnalysis.structure.improvements
+            },
+            jobTitle: parsedAnalysis.job_title || "Resume Analysis"
+          });
+        } catch (error) {
+          console.error('Error parsing stored analysis:', error);
+        }
+      }
     }
-  }, [savedAnalysis]);
+  }, [savedAnalysis, analysisId, isLoadingAnalysis]);
 
   const handleSaveAnalysis = async () => {
     if (!user) {
@@ -218,25 +216,47 @@ const Results = () => {
       return;
     }
 
+    if (analysisId) {
+      toast({
+        title: "Analysis already saved",
+        description: "This analysis is already saved to your profile",
+      });
+      return;
+    }
+
+    const storedAnalysis = sessionStorage.getItem('resumeAnalysis');
+    if (!storedAnalysis) {
+      toast({
+        title: "No analysis to save",
+        description: "Please analyze a resume first",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSaving(true);
     
     try {
-      const analysisData: Omit<ResumeAnalysis, 'id' | 'created_at'> = {
+      const parsedAnalysis = JSON.parse(storedAnalysis);
+      
+      const analysisData = {
         user_id: user.id,
-        score: matchData.score,
-        keywords_found: matchData.keywords.found,
-        keywords_missing: matchData.keywords.missing,
-        structure_strengths: matchData.structure.strengths,
-        structure_improvements: matchData.structure.improvements,
-        job_title: matchData.jobTitle
+        score: parsedAnalysis.score,
+        keywords_found: parsedAnalysis.keywords.found.map(k => k.word),
+        keywords_missing: parsedAnalysis.keywords.missing.map(k => k.word),
+        structure_strengths: parsedAnalysis.structure.strengths,
+        structure_improvements: parsedAnalysis.structure.improvements,
+        job_title: parsedAnalysis.job_title
       };
       
-      await saveResumeAnalysis(analysisData);
+      const saved = await saveResumeAnalysis(analysisData);
       
       toast({
         title: "Analysis saved",
         description: "Your resume analysis has been saved to your profile",
       });
+      
+      navigate(`/results?id=${saved.id}`);
       
     } catch (error: any) {
       toast({
@@ -335,7 +355,7 @@ const Results = () => {
                     <div className="flex flex-wrap gap-2">
                       {matchData.keywords.found.map((keyword, index) => (
                         <Badge key={index} variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">
-                          ✅ {keyword}
+                          ✅ {keyword.word}
                         </Badge>
                       ))}
                     </div>
@@ -351,7 +371,7 @@ const Results = () => {
                     <div className="flex flex-wrap gap-2">
                       {matchData.keywords.missing.map((keyword, index) => (
                         <Badge key={index} variant="outline" className="border-red-200 text-red-700 hover:bg-red-50">
-                          ❌ {keyword}
+                          ❌ {keyword.word}
                         </Badge>
                       ))}
                     </div>
@@ -465,7 +485,7 @@ const Results = () => {
                         variant={user ? "default" : "outline"} 
                         className={user ? "w-full bg-scanmatch-600 hover:bg-scanmatch-700" : "w-full border-scanmatch-200 text-scanmatch-700 hover:bg-scanmatch-50"}
                         onClick={user ? handleSaveAnalysis : () => navigate('/signup')}
-                        disabled={saving}
+                        disabled={saving || !!analysisId}
                       >
                         {user ? (
                           saving ? (
@@ -474,7 +494,7 @@ const Results = () => {
                               Saving...
                             </>
                           ) : (
-                            <>Save Analysis</>
+                            analysisId ? "Analysis Saved" : "Save Analysis"
                           )
                         ) : (
                           <Link to="/signup">Create Account</Link>

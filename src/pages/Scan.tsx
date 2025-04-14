@@ -5,10 +5,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Link, useNavigate } from "react-router-dom";
-import { File, Upload } from "lucide-react";
+import { File, Upload, Loader2 } from "lucide-react";
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import { toast } from "@/components/ui/sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { saveResumeAnalysis } from "@/lib/supabaseClient";
+import { useAuth } from "@/hooks/useAuth";
 
 const Scan = () => {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -16,6 +19,7 @@ const Scan = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -34,7 +38,26 @@ const Scan = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const readFileAsText = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (file.type === 'text/plain') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve(e.target?.result as string);
+        };
+        reader.onerror = reject;
+        reader.readAsText(file);
+      } else if (file.type === 'application/pdf') {
+        // For simplicity, we'll return the filename for PDF files
+        // In a production app, you would use a PDF parsing library
+        resolve(`Resume file: ${file.name} (PDF content would be extracted)`);
+      } else {
+        reject(new Error('Unsupported file type'));
+      }
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!resumeFile) {
@@ -50,13 +73,51 @@ const Scan = () => {
     setIsLoading(true);
     setError('');
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Read the file content
+      const resumeText = await readFileAsText(resumeFile);
+      
+      // Call the Supabase edge function to analyze the resume
+      const { data, error: functionError } = await supabase.functions.invoke('resume-scan', {
+        body: { resumeText, jobDescription },
+      });
+      
+      if (functionError) {
+        throw new Error(functionError.message || 'Error analyzing resume');
+      }
+      
+      if (!data) {
+        throw new Error('No data returned from analysis');
+      }
+      
+      // Save the analysis if user is logged in
+      if (user) {
+        const analysisData = {
+          user_id: user.id,
+          score: data.score,
+          keywords_found: data.keywords.found.map(k => k.word),
+          keywords_missing: data.keywords.missing.map(k => k.word),
+          structure_strengths: data.structure.strengths,
+          structure_improvements: data.structure.improvements,
+          job_title: data.job_title
+        };
+        
+        const savedAnalysis = await saveResumeAnalysis(analysisData);
+        navigate(`/results?id=${savedAnalysis.id}`);
+      } else {
+        // Store in session storage for anonymous users
+        sessionStorage.setItem('resumeAnalysis', JSON.stringify(data));
+        navigate('/results');
+      }
+    } catch (err: any) {
+      console.error('Error in resume scan:', err);
+      setError(err.message || 'An error occurred while analyzing your resume');
+      toast.error('Analysis failed', {
+        description: err.message || 'Please try again later',
+      });
+    } finally {
       setIsLoading(false);
-      // In a real application, we would submit the resume and job description to an API,
-      // but for now we'll just navigate to the results page
-      navigate('/results');
-    }, 2000);
+    }
   };
 
   return (
@@ -149,7 +210,14 @@ const Scan = () => {
                   className="bg-scanmatch-600 hover:bg-scanmatch-700"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Analyzing...' : 'Analyze & Score Resume'}
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    'Analyze & Score Resume'
+                  )}
                 </Button>
               </div>
             </form>
