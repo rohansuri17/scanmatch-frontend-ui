@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -161,7 +162,6 @@ const Results = () => {
     },
     jobTitle: "",
     improvement_suggestions: [],
-
   });
 
   const { data: savedAnalysis, isLoading: isLoadingAnalysis } = useQuery({
@@ -172,18 +172,63 @@ const Results = () => {
 
   useEffect(() => {
     if (savedAnalysis) {
+      console.log("Retrieved savedAnalysis:", savedAnalysis);
+      
+      // Check if keywords_found exists and is an array or convert to array if it's a string
+      const keywordsFound = Array.isArray(savedAnalysis.keywords_found) 
+        ? savedAnalysis.keywords_found 
+        : typeof savedAnalysis.keywords_found === 'string' 
+          ? JSON.parse(savedAnalysis.keywords_found || '[]') 
+          : [];
+      
+      // Check if keywords_missing exists and is an array or convert to array if it's a string
+      const keywordsMissing = Array.isArray(savedAnalysis.keywords_missing) 
+        ? savedAnalysis.keywords_missing 
+        : typeof savedAnalysis.keywords_missing === 'string'
+          ? JSON.parse(savedAnalysis.keywords_missing || '[]') 
+          : [];
+      
+      // Convert keywords to expected format
+      const foundKeywords = keywordsFound.map((word: string | {word: string, category: string}) => {
+        return typeof word === 'string' ? { word, category: 'unknown' } : word;
+      });
+      
+      const missingKeywords = keywordsMissing.map((word: string | {word: string, category: string}) => {
+        return typeof word === 'string' ? { word, category: 'unknown' } : word;
+      });
+      
+      // Same for structure strengths and improvements
+      const structureStrengths = Array.isArray(savedAnalysis.structure_strengths)
+        ? savedAnalysis.structure_strengths
+        : typeof savedAnalysis.structure_strengths === 'string'
+          ? JSON.parse(savedAnalysis.structure_strengths || '[]')
+          : [];
+          
+      const structureImprovements = Array.isArray(savedAnalysis.structure_improvements)
+        ? savedAnalysis.structure_improvements
+        : typeof savedAnalysis.structure_improvements === 'string'
+          ? JSON.parse(savedAnalysis.structure_improvements || '[]')
+          : [];
+      
+      // Same for improvement suggestions
+      const improvementSuggestions = Array.isArray(savedAnalysis.improvement_suggestions)
+        ? savedAnalysis.improvement_suggestions
+        : typeof savedAnalysis.improvement_suggestions === 'string'
+          ? JSON.parse(savedAnalysis.improvement_suggestions || '[]')
+          : [];
+      
       setMatchData({
-        score: savedAnalysis.score,
+        score: savedAnalysis.score || 0,
         keywords: {
-          found: savedAnalysis.keywords_found.map(word => ({ word, category: 'unknown' })),
-          missing: savedAnalysis.keywords_missing.map(word => ({ word, category: 'unknown' }))
+          found: foundKeywords,
+          missing: missingKeywords
         },
         structure: {
-          strengths: savedAnalysis.structure_strengths,
-          improvements: savedAnalysis.structure_improvements
+          strengths: structureStrengths,
+          improvements: structureImprovements
         },
         jobTitle: savedAnalysis.job_title || "Resume Analysis",
-        improvement_suggestions: savedAnalysis.improvement_suggestions || []
+        improvement_suggestions: improvementSuggestions
       });
     } else if (!analysisId && !isLoadingAnalysis) {
       const storedAnalysis = sessionStorage.getItem('resumeAnalysis');
