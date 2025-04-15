@@ -1,49 +1,48 @@
 
-import { useState, useEffect, createContext, useContext } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Session, User } from "@supabase/supabase-js";
+import { createContext, useContext, useEffect, useState } from 'react';
+import { User, signIn, signUp, signOut, getSession, authSubscribe } from '@/lib/supabaseClient';
 
-type AuthContextType = {
-  session: Session | null;
+// Define the auth context type
+export type AuthContextType = {
   user: User | null;
-  loading: boolean;
+  isLoading: boolean;
+  signIn: (email: string, password: string) => Promise<{ user: User | null; error: any }>;
+  signUp: (email: string, password: string) => Promise<{ user: User | null; error: any }>;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
-  session: null,
   user: null,
-  loading: true,
+  isLoading: true,
+  signIn: () => Promise.resolve({ user: null, error: null }),
+  signUp: () => Promise.resolve({ user: null, error: null }),
+  signOut: () => Promise.resolve(),
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state change listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
+    // Get initial session
+    getSession().then(({ data }) => {
+      setUser(data?.user || null);
+      setIsLoading(false);
+    });
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+    // Set up auth state listener
+    const { unsubscribe } = authSubscribe((event, session) => {
+      setUser(session?.user || null);
+      setIsLoading(false);
     });
 
     return () => {
-      subscription.unsubscribe();
+      unsubscribe();
     };
   }, []);
 
   return (
-    <AuthContext.Provider value={{ session, user, loading }}>
+    <AuthContext.Provider value={{ user, isLoading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

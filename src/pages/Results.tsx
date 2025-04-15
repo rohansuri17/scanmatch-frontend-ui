@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { FileText, Download, ChevronLeft, ChevronRight, Trophy, Award, AlertTriangle } from "lucide-react";
+import { FileText, Download, ChevronLeft, ChevronRight, Trophy, Award, AlertTriangle, GraduationCap, Briefcase } from "lucide-react";
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,6 +14,8 @@ import { getResumeAnalysis } from "@/lib/supabaseClient";
 import { useSubscription } from '@/hooks/useSubscription';
 import AIResumeCoach from '@/components/AIResumeCoach';
 import { toast } from "@/components/ui/sonner";
+import { Badge } from "@/components/ui/badge";
+import AICoachPreview from '@/components/AICoachPreview';
 
 const Results = () => {
   const location = useLocation();
@@ -23,6 +26,7 @@ const Results = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [resumeText, setResumeText] = useState('');
   const [jobDescription, setJobDescription] = useState('');
+  const [activeTab, setActiveTab] = useState('resume');
   
   useEffect(() => {
     const fetchAnalysis = async () => {
@@ -112,13 +116,20 @@ const Results = () => {
     scoreMessage = "Good! With a few adjustments, your resume will be even better.";
     scoreColorClass = "text-amber-600";
   } else {
-    scoreMessage = "Your resume needs some work to better match this job.";
-    scoreColorClass = "text-red-600";
+    scoreMessage = "You're off to a good start! Here's how to make it stronger for this role.";
+    scoreColorClass = "text-blue-600";
   }
   
-  const encouragementMessage = percentScore >= 70 
-    ? "You're almost there! Your resume shows great potential even with limited experience." 
-    : "Don't worry! Everyone starts somewhere. Let's make your experience shine!";
+  const encouragementMessage = percentScore >= 80 
+    ? "You're in great shape! Just polish a few areas for maximum impact." 
+    : percentScore >= 60 
+    ? "Nice job! With some tuning, this could really shine." 
+    : "You're on the right track — let's level this up together!";
+  
+  const isEntryLevel = analysis.job_title?.toLowerCase().includes('junior') || 
+                      analysis.job_title?.toLowerCase().includes('entry') || 
+                      analysis.job_title?.toLowerCase().includes('intern') || 
+                      analysis.job_title?.toLowerCase().includes('graduate');
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -144,15 +155,38 @@ const Results = () => {
             </div>
             
             <h1 className="text-3xl font-bold mb-1">Resume Analysis Results</h1>
-            <p className="text-gray-600">
-              {analysis.job_title 
-                ? `For ${analysis.job_title} position` 
-                : 'Job match analysis'}
-            </p>
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              {analysis.job_title && (
+                <p className="text-gray-700 flex items-center">
+                  <Briefcase className="h-4 w-4 mr-1" /> 
+                  {analysis.job_title}
+                  {isEntryLevel && (
+                    <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">Entry-Level</Badge>
+                  )}
+                </p>
+              )}
+            </div>
           </div>
           
+          {isEntryLevel && (
+            <Card className="bg-blue-50 border-blue-200 shadow-sm p-4 mb-8">
+              <div className="flex items-start">
+                <GraduationCap className="h-5 w-5 text-blue-700 mr-3 mt-1" />
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-800 mb-2">Tips for New Grads & Career Switchers</h3>
+                  <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
+                    <li>Frame academic projects like real-world experience</li>
+                    <li>Emphasize transferable skills like teamwork and adaptability</li>
+                    <li>Show enthusiasm and initiative over job history</li>
+                    <li>Highlight relevant coursework and technical skills</li>
+                  </ul>
+                </div>
+              </div>
+            </Card>
+          )}
+          
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            <Card className="shadow-md">
+            <Card className="shadow-md flex flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Trophy className="h-5 w-5 text-scanmatch-600 mr-2" />
@@ -160,7 +194,7 @@ const Results = () => {
                 </CardTitle>
                 <CardDescription>How well your resume matches the job</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-grow">
                 <div className="flex flex-col items-center justify-center py-4">
                   <div className="relative">
                     <svg className="w-32 h-32" viewBox="0 0 36 36">
@@ -178,7 +212,7 @@ const Results = () => {
                         a 15.9155 15.9155 0 0 1 0 31.831
                         a 15.9155 15.9155 0 0 1 0 -31.831"
                         fill="none"
-                        stroke={percentScore >= 80 ? "#4ade80" : percentScore >= 60 ? "#fbbf24" : "#f87171"}
+                        stroke={percentScore >= 80 ? "#4ade80" : percentScore >= 60 ? "#fbbf24" : "#60a5fa"}
                         strokeWidth="3"
                         strokeDasharray={`${percentScore}, 100`}
                         className="animate-scoreCircle"
@@ -192,6 +226,9 @@ const Results = () => {
                   <p className="mt-2 text-sm text-center text-gray-600">{encouragementMessage}</p>
                 </div>
               </CardContent>
+              <CardFooter className="pt-0 text-center text-sm text-gray-500">
+                We know job hunting is tough when you don't have years of experience. That's why we built this.
+              </CardFooter>
             </Card>
             
             <Card className="shadow-md">
@@ -249,12 +286,12 @@ const Results = () => {
                     </div>
                   </div>
                   
-                  {percentScore < 80 && (
+                  {percentScore < 80 && keywordsMissing.length > 0 && (
                     <div className="mt-4 bg-amber-50 border border-amber-200 rounded p-3">
                       <div className="flex items-start">
                         <AlertTriangle className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
                         <p className="text-sm text-amber-800">
-                          You're missing {keywordsMissing.length} important keywords. Try adding them to improve your match!
+                          Adding these {keywordsMissing.length} keywords could significantly improve your match!
                         </p>
                       </div>
                     </div>
@@ -272,25 +309,33 @@ const Results = () => {
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-sm font-medium mb-2 flex items-center">
-                      <Award className="h-4 w-4 text-scanmatch-600 mr-1" />
-                      Strengths
+                      <Award className="h-4 w-4 text-green-600 mr-1" />
+                      Structure Strengths
                     </h3>
                     <ul className="list-disc list-inside space-y-2 text-sm">
-                      {structureStrengths.map((strength: string, index: number) => (
-                        <li key={index} className="text-gray-700">{strength}</li>
-                      ))}
+                      {structureStrengths && structureStrengths.length > 0 ? (
+                        structureStrengths.map((strength: string, index: number) => (
+                          <li key={index} className="text-gray-700">{strength}</li>
+                        ))
+                      ) : (
+                        <li className="text-gray-500">No specific strengths detected</li>
+                      )}
                     </ul>
                   </div>
                   
                   <div>
                     <h3 className="text-sm font-medium mb-2 flex items-center">
                       <Award className="h-4 w-4 text-amber-500 mr-1" />
-                      Improvements
+                      Structure Weaknesses
                     </h3>
                     <ul className="list-disc list-inside space-y-2 text-sm">
-                      {structureImprovements.map((improvement: string, index: number) => (
-                        <li key={index} className="text-gray-700">{improvement}</li>
-                      ))}
+                      {structureImprovements && structureImprovements.length > 0 ? (
+                        structureImprovements.map((improvement: string, index: number) => (
+                          <li key={index} className="text-gray-700">{improvement}</li>
+                        ))
+                      ) : (
+                        <li className="text-gray-500">No specific weaknesses detected</li>
+                      )}
                     </ul>
                   </div>
                 </div>
@@ -320,37 +365,28 @@ const Results = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <p className="text-sm">
-                      Our AI Coach can help you optimize your resume for this job. It can provide tailored advice on:
+                  <AICoachPreview />
+                  
+                  <Button 
+                    className="w-full mt-4 bg-scanmatch-600 hover:bg-scanmatch-700"
+                    asChild
+                  >
+                    <Link to="/ai-coach">
+                      Get Personal Resume Advice
+                    </Link>
+                  </Button>
+                  
+                  {!user && (
+                    <p className="text-xs text-gray-500 text-center mt-2">
+                      Log in to access the AI Resume Coach
                     </p>
-                    <ul className="list-disc list-inside space-y-1 text-sm">
-                      <li>Better framing your academic or non-traditional experience</li>
-                      <li>Emphasizing your transferable skills effectively</li>
-                      <li>Addressing the missing keywords and requirements</li>
-                    </ul>
-                    
-                    <Button 
-                      className="w-full bg-scanmatch-600 hover:bg-scanmatch-700"
-                      asChild
-                    >
-                      <Link to="/ai-coach">
-                        Get Personal Resume Advice
-                      </Link>
-                    </Button>
-                    
-                    {!user && (
-                      <p className="text-xs text-gray-500 text-center">
-                        Log in to access the AI Resume Coach
-                      </p>
-                    )}
-                    
-                    {user && tier === 'free' && (
-                      <p className="text-xs text-gray-500 text-center">
-                        Upgrade to Pro to access the AI Resume Coach
-                      </p>
-                    )}
-                  </div>
+                  )}
+                  
+                  {user && tier === 'free' && (
+                    <p className="text-xs text-gray-500 text-center mt-2">
+                      Upgrade to Pro to access the AI Resume Coach
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -366,7 +402,7 @@ const Results = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {improvementSuggestions.length > 0 ? (
+                  {improvementSuggestions && improvementSuggestions.length > 0 ? (
                     improvementSuggestions.map((suggestion: string, index: number) => (
                       <div key={index} className="p-3 border rounded bg-scanmatch-50">
                         <p className="text-gray-700">{suggestion}</p>
@@ -377,6 +413,14 @@ const Results = () => {
                   )}
                 </div>
               </CardContent>
+              <CardFooter className="flex justify-center">
+                <div className="text-center">
+                  <p className="text-sm font-medium mb-2">📤 Want a rewritten resume?</p>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/ai-coach">Try our rewrite assistant</Link>
+                  </Button>
+                </div>
+              </CardFooter>
             </Card>
           </div>
           

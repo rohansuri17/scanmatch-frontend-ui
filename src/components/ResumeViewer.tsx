@@ -35,31 +35,42 @@ const ResumeViewer: React.FC<ResumeViewerProps> = ({
   const highlightKeywords = (text: string) => {
     if (!text) return <p>No text available</p>;
     
-    // Split text into words or phrases
-    const words = text.split(/\b/);
+    // Split text into paragraphs
+    const paragraphs = text.split(/\n+/);
     
     return (
       <div className="whitespace-pre-wrap">
-        {words.map((word, index) => {
-          const normalizedWord = normalizeText(word);
+        {paragraphs.map((paragraph, pIndex) => {
+          if (!paragraph.trim()) return <br key={`p-${pIndex}`} />;
           
-          // Check if word matches any found keyword
-          const isFoundKeyword = foundKeywords.some(keyword => 
-            normalizedWord.includes(keyword) || keyword.includes(normalizedWord)
+          // Split paragraph into words or phrases
+          const words = paragraph.split(/\b/);
+          
+          return (
+            <p key={`p-${pIndex}`} className="mb-4">
+              {words.map((word, index) => {
+                const normalizedWord = normalizeText(word);
+                
+                // Check if word matches any found keyword
+                const isFoundKeyword = foundKeywords.some(keyword => 
+                  normalizedWord.includes(keyword) || keyword.includes(normalizedWord)
+                );
+                
+                // Check if word matches any missing keyword
+                const isMissingKeyword = missingKeywords.some(keyword => 
+                  normalizedWord.includes(keyword) || keyword.includes(normalizedWord)
+                );
+                
+                if (isFoundKeyword) {
+                  return <span key={`w-${pIndex}-${index}`} className="bg-green-200 text-green-800 px-0.5 rounded">{word}</span>;
+                } else if (isMissingKeyword) {
+                  return <span key={`w-${pIndex}-${index}`} className="bg-red-200 text-red-800 px-0.5 rounded">{word}</span>;
+                } else {
+                  return <span key={`w-${pIndex}-${index}`}>{word}</span>;
+                }
+              })}
+            </p>
           );
-          
-          // Check if word matches any missing keyword
-          const isMissingKeyword = missingKeywords.some(keyword => 
-            normalizedWord.includes(keyword) || keyword.includes(normalizedWord)
-          );
-          
-          if (isFoundKeyword) {
-            return <span key={index} className="bg-green-200 text-green-800 px-0.5 rounded">{word}</span>;
-          } else if (isMissingKeyword) {
-            return <span key={index} className="bg-red-200 text-red-800 px-0.5 rounded">{word}</span>;
-          } else {
-            return <span key={index}>{word}</span>;
-          }
         })}
       </div>
     );
