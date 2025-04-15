@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // Get initial session
     getSession().then(({ data }) => {
-      setUser(data?.user || null);
+      setUser(data?.session?.user || null);
       setIsLoading(false);
     });
 
@@ -41,8 +41,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
+  // Wrap signOut to match the Promise<void> return type
+  const handleSignOut = async (): Promise<void> => {
+    await signOut();
+    return Promise.resolve();
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      isLoading, 
+      signIn, 
+      signUp, 
+      signOut: handleSignOut 
+    }}>
       {children}
     </AuthContext.Provider>
   );

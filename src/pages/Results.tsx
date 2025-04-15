@@ -1,10 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { FileText, Download, ChevronLeft, ChevronRight, Trophy, Award, AlertTriangle, GraduationCap, Briefcase } from "lucide-react";
+import { FileText, ChevronLeft, ChevronRight, Trophy, Award, AlertTriangle, GraduationCap, Briefcase } from "lucide-react";
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,7 +10,6 @@ import ResumeViewer from '@/components/ResumeViewer';
 import { useAuth } from "@/hooks/useAuth";
 import { getResumeAnalysis } from "@/lib/supabaseClient";
 import { useSubscription } from '@/hooks/useSubscription';
-import AIResumeCoach from '@/components/AIResumeCoach';
 import { toast } from "@/components/ui/sonner";
 import { Badge } from "@/components/ui/badge";
 import AICoachPreview from '@/components/AICoachPreview';
@@ -88,21 +85,67 @@ const Results = () => {
   }
   
   const parseJsonField = (field: any) => {
+    if (!field) return [];
+    
     if (typeof field === 'string') {
       try {
         return JSON.parse(field);
       } catch (e) {
-        return [];
+        console.log("Failed to parse JSON field:", field, e);
+        return [field];
       }
     }
-    return field || [];
+    
+    if (Array.isArray(field)) {
+      return field;
+    }
+    
+    if (field && typeof field === 'object') {
+      if (field.found) return field.found;
+      if (field.missing) return field.missing;
+      
+      return Object.values(field);
+    }
+    
+    return [];
   };
   
-  const keywordsFound = parseJsonField(analysis.keywords_found);
-  const keywordsMissing = parseJsonField(analysis.keywords_missing);
-  const structureStrengths = parseJsonField(analysis.structure_strengths);
-  const structureImprovements = parseJsonField(analysis.structure_improvements);
+  const hasKeywordsObject = analysis && 
+    analysis.keywords && 
+    (Array.isArray(analysis.keywords.found) || Array.isArray(analysis.keywords.missing));
+  
+  const keywordsFound = hasKeywordsObject
+    ? parseJsonField(analysis.keywords?.found)
+    : parseJsonField(analysis.keywords_found);
+  
+  const keywordsMissing = hasKeywordsObject
+    ? parseJsonField(analysis.keywords?.missing)
+    : parseJsonField(analysis.keywords_missing);
+  
+  const hasStructureObject = analysis && 
+    analysis.structure && 
+    (Array.isArray(analysis.structure.strengths) || Array.isArray(analysis.structure.improvements));
+  
+  const structureStrengths = hasStructureObject
+    ? parseJsonField(analysis.structure?.strengths)
+    : parseJsonField(analysis.structure_strengths);
+  
+  const structureImprovements = hasStructureObject
+    ? parseJsonField(analysis.structure?.improvements)
+    : parseJsonField(analysis.structure_improvements);
+  
   const improvementSuggestions = parseJsonField(analysis.improvement_suggestions);
+  
+  console.log("Parsed data:", {
+    keywordsFound,
+    keywordsMissing,
+    structureStrengths,
+    structureImprovements,
+    hasKeywordsObject,
+    hasStructureObject,
+    rawKeywords: analysis.keywords || analysis.keywords_found,
+    rawStructure: analysis.structure || analysis.structure_strengths
+  });
   
   const percentScore = Math.round(analysis.score);
   
@@ -157,13 +200,15 @@ const Results = () => {
             <h1 className="text-3xl font-bold mb-1">Resume Analysis Results</h1>
             <div className="flex flex-wrap items-center gap-2 mb-4">
               {analysis.job_title && (
-                <p className="text-gray-700 flex items-center">
+                <div className="text-gray-700 flex items-center">
                   <Briefcase className="h-4 w-4 mr-1" /> 
                   {analysis.job_title}
                   {isEntryLevel && (
-                    <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">Entry-Level</Badge>
+                    <span className="ml-2">
+                      <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-200">Entry-Level</Badge>
+                    </span>
                   )}
-                </p>
+                </div>
               )}
             </div>
           </div>
@@ -244,7 +289,7 @@ const Results = () => {
                       <span className="text-xs text-gray-500">{Array.isArray(keywordsFound) ? keywordsFound.length : 0} found</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {Array.isArray(keywordsFound) && keywordsFound.length > 0 ? (
+                      {keywordsFound && keywordsFound.length > 0 ? (
                         keywordsFound.slice(0, 8).map((keyword, index) => (
                           <span 
                             key={index} 
@@ -256,7 +301,7 @@ const Results = () => {
                       ) : (
                         <span className="text-sm text-gray-500">No keywords found</span>
                       )}
-                      {Array.isArray(keywordsFound) && keywordsFound.length > 8 && (
+                      {keywordsFound && keywordsFound.length > 8 && (
                         <span className="text-xs text-scanmatch-600">+{keywordsFound.length - 8} more</span>
                       )}
                     </div>
@@ -268,7 +313,7 @@ const Results = () => {
                       <span className="text-xs text-gray-500">{Array.isArray(keywordsMissing) ? keywordsMissing.length : 0} missing</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {Array.isArray(keywordsMissing) && keywordsMissing.length > 0 ? (
+                      {keywordsMissing && keywordsMissing.length > 0 ? (
                         keywordsMissing.slice(0, 8).map((keyword, index) => (
                           <span 
                             key={index} 
@@ -280,13 +325,13 @@ const Results = () => {
                       ) : (
                         <span className="text-sm text-gray-500">No missing keywords</span>
                       )}
-                      {Array.isArray(keywordsMissing) && keywordsMissing.length > 8 && (
+                      {keywordsMissing && keywordsMissing.length > 8 && (
                         <span className="text-xs text-scanmatch-600">+{keywordsMissing.length - 8} more</span>
                       )}
                     </div>
                   </div>
                   
-                  {percentScore < 80 && keywordsMissing.length > 0 && (
+                  {percentScore < 80 && keywordsMissing && keywordsMissing.length > 0 && (
                     <div className="mt-4 bg-amber-50 border border-amber-200 rounded p-3">
                       <div className="flex items-start">
                         <AlertTriangle className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />

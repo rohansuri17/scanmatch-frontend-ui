@@ -19,15 +19,21 @@ const ResumeViewer: React.FC<ResumeViewerProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState('resume');
 
+  // Log the keywords for debugging
+  console.log("Keywords in ResumeViewer:", {
+    found: keywordsFound,
+    missing: keywordsMissing
+  });
+
   // Helper function to normalize keywords for consistent matching
   const normalizeText = (text: string) => text.toLowerCase().trim();
   
   // Extract simple strings from keyword items
-  const foundKeywords = Array.isArray(keywordsFound) 
+  const foundKeywordsList = Array.isArray(keywordsFound) 
     ? keywordsFound.map(kw => typeof kw === 'string' ? normalizeText(kw) : normalizeText(kw.word))
     : [];
     
-  const missingKeywords = Array.isArray(keywordsMissing)
+  const missingKeywordsList = Array.isArray(keywordsMissing)
     ? keywordsMissing.map(kw => typeof kw === 'string' ? normalizeText(kw) : normalizeText(kw.word))
     : [];
   
@@ -52,12 +58,12 @@ const ResumeViewer: React.FC<ResumeViewerProps> = ({
                 const normalizedWord = normalizeText(word);
                 
                 // Check if word matches any found keyword
-                const isFoundKeyword = foundKeywords.some(keyword => 
+                const isFoundKeyword = foundKeywordsList.some(keyword => 
                   normalizedWord.includes(keyword) || keyword.includes(normalizedWord)
                 );
                 
                 // Check if word matches any missing keyword
-                const isMissingKeyword = missingKeywords.some(keyword => 
+                const isMissingKeyword = missingKeywordsList.some(keyword => 
                   normalizedWord.includes(keyword) || keyword.includes(normalizedWord)
                 );
                 
