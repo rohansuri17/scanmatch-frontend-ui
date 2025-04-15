@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -40,7 +41,24 @@ You are a resume evaluation API with 25 years of experience as a college career 
   "improvement_suggestions": [string]
 }
 
-Make the structure strengths, structure improvements, and improvement_suggestions detailed and specific giving actionable guidance. Each should be 1–2 sentences. Avoid generic advice. Do not include markdown or commentary. Output only valid JSON.
+IMPORTANT INSTRUCTIONS FOR KEYWORDS:
+1. "found" keywords should ONLY include terms that appear in BOTH the resume and job description.
+2. "missing" keywords should ONLY include important terms that appear in the job description but NOT in the resume.
+3. Focus on skills, technologies, qualifications, and responsibilities.
+4. Be thorough and accurate in keyword identification.
+5. Include specific technologies, tools, methodologies, and industry terms.
+
+For the structure analysis:
+- Make each strength and improvement detailed and specific with actionable guidance (1-2 sentences)
+- Avoid generic advice
+- Highlight formatting, organization, and content presentation issues
+
+For improvement suggestions:
+- Provide 3-5 specific, actionable recommendations to enhance the resume for this job
+- Target advice for career stage (new grad, mid-career, senior)
+- Include both content and formatting suggestions  
+
+Do not include markdown or commentary. Output only valid JSON.
 `.trim();
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {

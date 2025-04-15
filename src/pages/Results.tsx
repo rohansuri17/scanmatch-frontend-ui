@@ -1,11 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { FileText, ChevronLeft, ChevronRight, Trophy, Award, AlertTriangle, GraduationCap, Briefcase } from "lucide-react";
+import { FileText, ChevronLeft, ChevronRight, GraduationCap, Briefcase } from "lucide-react";
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ResumeViewer from '@/components/ResumeViewer';
 import { useAuth } from "@/hooks/useAuth";
 import { getResumeAnalysis } from "@/lib/supabaseClient";
@@ -13,6 +12,11 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { toast } from "@/components/ui/sonner";
 import { Badge } from "@/components/ui/badge";
 import AICoachPreview from '@/components/AICoachPreview';
+import MatchScoreCard from '@/components/MatchScoreCard';
+import KeywordAnalysisCard from '@/components/KeywordAnalysisCard';
+import ResumeStructureCard from '@/components/ResumeStructureCard';
+import SaveResumeCard from '@/components/SaveResumeCard';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 
 const Results = () => {
   const location = useLocation();
@@ -23,7 +27,7 @@ const Results = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [resumeText, setResumeText] = useState('');
   const [jobDescription, setJobDescription] = useState('');
-  const [activeTab, setActiveTab] = useState('resume');
+  const [analysisId, setAnalysisId] = useState<string | null>(null);
   
   useEffect(() => {
     const fetchAnalysis = async () => {
@@ -34,6 +38,7 @@ const Results = () => {
         const analysisId = params.get('id');
         
         if (analysisId && user) {
+          setAnalysisId(analysisId);
           const analysis = await getResumeAnalysis(analysisId);
           setAnalysis(analysis);
           
@@ -140,34 +145,10 @@ const Results = () => {
     keywordsFound,
     keywordsMissing,
     structureStrengths,
-    structureImprovements,
-    hasKeywordsObject,
-    hasStructureObject,
-    rawKeywords: analysis.keywords || analysis.keywords_found,
-    rawStructure: analysis.structure || analysis.structure_strengths
+    structureImprovements
   });
   
   const percentScore = Math.round(analysis.score);
-  
-  let scoreMessage = '';
-  let scoreColorClass = '';
-  
-  if (percentScore >= 80) {
-    scoreMessage = "Excellent! Your resume is well-matched for this job.";
-    scoreColorClass = "text-green-600";
-  } else if (percentScore >= 60) {
-    scoreMessage = "Good! With a few adjustments, your resume will be even better.";
-    scoreColorClass = "text-amber-600";
-  } else {
-    scoreMessage = "You're off to a good start! Here's how to make it stronger for this role.";
-    scoreColorClass = "text-blue-600";
-  }
-  
-  const encouragementMessage = percentScore >= 80 
-    ? "You're in great shape! Just polish a few areas for maximum impact." 
-    : percentScore >= 60 
-    ? "Nice job! With some tuning, this could really shine." 
-    : "You're on the right track — let's level this up together!";
   
   const isEntryLevel = analysis.job_title?.toLowerCase().includes('junior') || 
                       analysis.job_title?.toLowerCase().includes('entry') || 
@@ -213,6 +194,8 @@ const Results = () => {
             </div>
           </div>
           
+          {!user && <SaveResumeCard />}
+          
           {isEntryLevel && (
             <Card className="bg-blue-50 border-blue-200 shadow-sm p-4 mb-8">
               <div className="flex items-start">
@@ -231,161 +214,16 @@ const Results = () => {
           )}
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            <Card className="shadow-md flex flex-col">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Trophy className="h-5 w-5 text-scanmatch-600 mr-2" />
-                  Match Score
-                </CardTitle>
-                <CardDescription>How well your resume matches the job</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <div className="flex flex-col items-center justify-center py-4">
-                  <div className="relative">
-                    <svg className="w-32 h-32" viewBox="0 0 36 36">
-                      <path
-                        d="M18 2.0845
-                        a 15.9155 15.9155 0 0 1 0 31.831
-                        a 15.9155 15.9155 0 0 1 0 -31.831"
-                        fill="none"
-                        stroke="#e6e6e6"
-                        strokeWidth="3"
-                        strokeDasharray="100, 100"
-                      />
-                      <path
-                        d="M18 2.0845
-                        a 15.9155 15.9155 0 0 1 0 31.831
-                        a 15.9155 15.9155 0 0 1 0 -31.831"
-                        fill="none"
-                        stroke={percentScore >= 80 ? "#4ade80" : percentScore >= 60 ? "#fbbf24" : "#60a5fa"}
-                        strokeWidth="3"
-                        strokeDasharray={`${percentScore}, 100`}
-                        className="animate-scoreCircle"
-                      />
-                      <text x="18" y="20.5" textAnchor="middle" className="text-3xl font-bold">
-                        {percentScore}
-                      </text>
-                    </svg>
-                  </div>
-                  <p className={`mt-4 text-center font-medium ${scoreColorClass}`}>{scoreMessage}</p>
-                  <p className="mt-2 text-sm text-center text-gray-600">{encouragementMessage}</p>
-                </div>
-              </CardContent>
-              <CardFooter className="pt-0 text-center text-sm text-gray-500">
-                We know job hunting is tough when you don't have years of experience. That's why we built this.
-              </CardFooter>
-            </Card>
-            
-            <Card className="shadow-md">
-              <CardHeader>
-                <CardTitle>Keywords Analysis</CardTitle>
-                <CardDescription>Important terms found in your resume</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium">Found Keywords</span>
-                      <span className="text-xs text-gray-500">{Array.isArray(keywordsFound) ? keywordsFound.length : 0} found</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {keywordsFound && keywordsFound.length > 0 ? (
-                        keywordsFound.slice(0, 8).map((keyword, index) => (
-                          <span 
-                            key={index} 
-                            className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded"
-                          >
-                            {typeof keyword === 'string' ? keyword : keyword.word}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-gray-500">No keywords found</span>
-                      )}
-                      {keywordsFound && keywordsFound.length > 8 && (
-                        <span className="text-xs text-scanmatch-600">+{keywordsFound.length - 8} more</span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium">Missing Keywords</span>
-                      <span className="text-xs text-gray-500">{Array.isArray(keywordsMissing) ? keywordsMissing.length : 0} missing</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {keywordsMissing && keywordsMissing.length > 0 ? (
-                        keywordsMissing.slice(0, 8).map((keyword, index) => (
-                          <span 
-                            key={index} 
-                            className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded"
-                          >
-                            {typeof keyword === 'string' ? keyword : keyword.word}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-gray-500">No missing keywords</span>
-                      )}
-                      {keywordsMissing && keywordsMissing.length > 8 && (
-                        <span className="text-xs text-scanmatch-600">+{keywordsMissing.length - 8} more</span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {percentScore < 80 && keywordsMissing && keywordsMissing.length > 0 && (
-                    <div className="mt-4 bg-amber-50 border border-amber-200 rounded p-3">
-                      <div className="flex items-start">
-                        <AlertTriangle className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
-                        <p className="text-sm text-amber-800">
-                          Adding these {keywordsMissing.length} keywords could significantly improve your match!
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="shadow-md">
-              <CardHeader>
-                <CardTitle>Resume Structure</CardTitle>
-                <CardDescription>Strengths and areas for improvement</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-medium mb-2 flex items-center">
-                      <Award className="h-4 w-4 text-green-600 mr-1" />
-                      Structure Strengths
-                    </h3>
-                    <ul className="list-disc list-inside space-y-2 text-sm">
-                      {structureStrengths && structureStrengths.length > 0 ? (
-                        structureStrengths.map((strength: string, index: number) => (
-                          <li key={index} className="text-gray-700">{strength}</li>
-                        ))
-                      ) : (
-                        <li className="text-gray-500">No specific strengths detected</li>
-                      )}
-                    </ul>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-sm font-medium mb-2 flex items-center">
-                      <Award className="h-4 w-4 text-amber-500 mr-1" />
-                      Structure Weaknesses
-                    </h3>
-                    <ul className="list-disc list-inside space-y-2 text-sm">
-                      {structureImprovements && structureImprovements.length > 0 ? (
-                        structureImprovements.map((improvement: string, index: number) => (
-                          <li key={index} className="text-gray-700">{improvement}</li>
-                        ))
-                      ) : (
-                        <li className="text-gray-500">No specific weaknesses detected</li>
-                      )}
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <MatchScoreCard score={percentScore} />
+            <KeywordAnalysisCard 
+              keywordsFound={keywordsFound} 
+              keywordsMissing={keywordsMissing} 
+              score={percentScore}
+            />
+            <ResumeStructureCard 
+              structureStrengths={structureStrengths} 
+              structureImprovements={structureImprovements}
+            />
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
@@ -451,6 +289,11 @@ const Results = () => {
                     improvementSuggestions.map((suggestion: string, index: number) => (
                       <div key={index} className="p-3 border rounded bg-scanmatch-50">
                         <p className="text-gray-700">{suggestion}</p>
+                        <div className="mt-2 flex justify-end">
+                          <Button variant="outline" size="sm" className="text-xs">
+                            Rewrite for me
+                          </Button>
+                        </div>
                       </div>
                     ))
                   ) : (

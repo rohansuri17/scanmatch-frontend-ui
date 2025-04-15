@@ -1,11 +1,12 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { User, signIn, signUp, signOut, getSession, authSubscribe } from '@/lib/supabaseClient';
+import { User, signIn, signUp, signOut, getSession, supabase } from '@/lib/supabaseClient';
 
 // Define the auth context type
 export type AuthContextType = {
   user: User | null;
-  isLoading: boolean;
+  isLoading: boolean;  // Maintain isLoading property
+  loading: boolean;    // Add loading property for backward compatibility 
   signIn: (email: string, password: string) => Promise<{ user: User | null; error: any }>;
   signUp: (email: string, password: string) => Promise<{ user: User | null; error: any }>;
   signOut: () => Promise<void>;
@@ -14,6 +15,7 @@ export type AuthContextType = {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
+  loading: true,  // Add loading property here as well
   signIn: () => Promise.resolve({ user: null, error: null }),
   signUp: () => Promise.resolve({ user: null, error: null }),
   signOut: () => Promise.resolve(),
@@ -31,13 +33,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     // Set up auth state listener
-    const { unsubscribe } = authSubscribe((event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user || null);
       setIsLoading(false);
     });
 
     return () => {
-      unsubscribe();
+      authListener?.subscription.unsubscribe();
     };
   }, []);
 
@@ -51,6 +53,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     <AuthContext.Provider value={{ 
       user, 
       isLoading, 
+      loading: isLoading, // Add loading as alias for isLoading for backward compatibility
       signIn, 
       signUp, 
       signOut: handleSignOut 
