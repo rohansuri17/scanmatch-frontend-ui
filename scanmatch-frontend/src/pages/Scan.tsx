@@ -11,11 +11,8 @@ import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { saveResumeAnalysis } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import workerSrc from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
-
-GlobalWorkerOptions.workerSrc = workerSrc;
-
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 
 
@@ -41,39 +38,29 @@ const Scan = () => {
       }
     }
   };
-  
+
   const readFileAsText = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
-      if (file.type === 'text/plain') {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target?.result as string);
-        reader.onerror = reject;
-        reader.readAsText(file);
-      } else if (file.type === 'application/pdf') {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          try {
-            const typedArray = new Uint8Array(e.target?.result as ArrayBuffer);
-            const pdf = await getDocument({ data: typedArray }).promise;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const typedArray = new Uint8Array(e.target?.result as ArrayBuffer);
+          const pdf = await getDocument({ data: typedArray }).promise;
   
-            let fullText = '';
-            for (let i = 1; i <= pdf.numPages; i++) {
-              const page = await pdf.getPage(i);
-              const content = await page.getTextContent();
-              const text = content.items.map((item: any) => item.str).join(' ');
-              fullText += text + '\n';
-            }
-  
-            resolve(fullText.trim());
-          } catch (err) {
-            reject(err);
+          let text = '';
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            text += content.items.map((item: any) => item.str).join(' ') + '\n';
           }
-        };
-        reader.onerror = reject;
-        reader.readAsArrayBuffer(file);
-      } else {
-        reject(new Error('Unsupported file type'));
-      }
+  
+          resolve(text.trim());
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
     });
   };
   
