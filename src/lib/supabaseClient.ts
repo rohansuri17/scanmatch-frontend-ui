@@ -1,6 +1,9 @@
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, User as SupabaseUser } from "@supabase/supabase-js";
 import { SubscriptionTier, UserSubscription } from "./types";
+
+// Export User type for usage in other files
+export type User = SupabaseUser;
 
 // Get environment variables with fallbacks for development
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -18,6 +21,43 @@ export const supabase = createClient(
   supabaseUrl || 'https://placeholder-url.supabase.co',
   supabaseAnonKey || 'placeholder-key'
 );
+
+// Auth related functions
+export const signIn = async (email: string, password: string) => {
+  const response = await supabase.auth.signInWithPassword({ email, password });
+  return {
+    user: response.data.user,
+    error: response.error
+  };
+};
+
+export const signUp = async (email: string, password: string) => {
+  const response = await supabase.auth.signUp({ email, password });
+  return {
+    user: response.data.user,
+    error: response.error
+  };
+};
+
+export const signOut = async () => {
+  return await supabase.auth.signOut();
+};
+
+export const getSession = async () => {
+  return await supabase.auth.getSession();
+};
+
+export const authSubscribe = (callback: (event: 'SIGNED_IN' | 'SIGNED_OUT' | 'USER_UPDATED' | 'INITIAL_SESSION', session: any) => void) => {
+  const { data } = supabase.auth.onAuthStateChange((event, session) => {
+    callback(event as any, session);
+  });
+  
+  return {
+    unsubscribe: () => {
+      data.subscription.unsubscribe();
+    }
+  };
+};
 
 // Type definition for keyword objects
 export type KeywordItem = string | { word: string; category?: string };
