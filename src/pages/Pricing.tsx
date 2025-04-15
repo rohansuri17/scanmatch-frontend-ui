@@ -1,11 +1,15 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
+import { supabase } from '@/lib/supabaseClient';
+import { useToast } from '@/hooks/use-toast';
 
 // Pricing plan data
 const pricingPlans = [
@@ -21,6 +25,7 @@ const pricingPlans = [
     ],
     buttonText: "Get Started",
     buttonLink: "/scan",
+    tier: "free",
     highlighted: false
   },
   {
@@ -32,12 +37,13 @@ const pricingPlans = [
       "Unlimited resume scans",
       "Detailed keyword analysis",
       "In-depth structure feedback",
-      "AI Resume Coach access",
+      "Save analyses to your account",
       "1 professional resume rewrite",
       "Cover letter suggestions"
     ],
     buttonText: "Upgrade to Pro",
     buttonLink: "/signup",
+    tier: "pro",
     highlighted: true
   },
   {
@@ -47,6 +53,7 @@ const pricingPlans = [
     description: "Complete package for job search success",
     features: [
       "All Pro features",
+      "AI Resume Coach access",
       "3 professional resume rewrites",
       "3 custom cover letters",
       "LinkedIn profile optimization",
@@ -55,16 +62,34 @@ const pricingPlans = [
     ],
     buttonText: "Upgrade to Premium",
     buttonLink: "/signup",
+    tier: "premium",
     highlighted: false
   }
 ];
 
-const PricingPlan = ({ plan }: { plan: typeof pricingPlans[0] }) => {
+const PricingPlan = ({ 
+  plan, 
+  currentTier, 
+  handleSubscribe, 
+  isProcessing 
+}: { 
+  plan: typeof pricingPlans[0], 
+  currentTier: string, 
+  handleSubscribe: (tier: string) => void,
+  isProcessing: boolean
+}) => {
+  const isCurrentPlan = currentTier === plan.tier;
+  
   return (
-    <Card className={`flex flex-col h-full ${plan.highlighted ? 'border-scanmatch-500 shadow-lg' : ''}`}>
+    <Card className={`flex flex-col h-full ${plan.highlighted ? 'border-scanmatch-500 shadow-lg' : ''} ${isCurrentPlan ? 'ring-2 ring-scanmatch-500' : ''}`}>
       {plan.highlighted && (
         <div className="bg-scanmatch-500 text-white text-center py-1 text-sm font-medium">
           Most Popular
+        </div>
+      )}
+      {isCurrentPlan && (
+        <div className="bg-green-500 text-white text-center py-1 text-sm font-medium">
+          Current Plan
         </div>
       )}
       <CardHeader>
@@ -90,19 +115,84 @@ const PricingPlan = ({ plan }: { plan: typeof pricingPlans[0] }) => {
         </ul>
       </CardContent>
       <CardFooter>
-        <Button 
-          className={`w-full ${plan.highlighted ? 'bg-scanmatch-600 hover:bg-scanmatch-700' : ''}`}
-          variant={plan.highlighted ? 'default' : 'outline'}
-          asChild
-        >
-          <Link to={plan.buttonLink}>{plan.buttonText}</Link>
-        </Button>
+        {isCurrentPlan ? (
+          <Button 
+            className="w-full bg-green-600 hover:bg-green-700" 
+            disabled
+          >
+            Your Current Plan
+          </Button>
+        ) : (
+          <Button 
+            className={`w-full ${plan.highlighted ? 'bg-scanmatch-600 hover:bg-scanmatch-700' : ''}`}
+            variant={plan.highlighted ? 'default' : 'outline'}
+            onClick={() => handleSubscribe(plan.tier)}
+            disabled={isProcessing || (plan.tier === 'free' && currentTier === 'free')}
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              plan.tier === 'free' ? 'Current Free Plan' : plan.buttonText
+            )}
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
 };
 
 const Pricing = () => {
+  const { user, loading } = useAuth();
+  const { tier: currentTier } = useSubscription();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleSubscribe = async (tier: string) => {
+    if (!user) {
+      // Redirect to signup
+      navigate('/signup?redirect=pricing&plan=' + tier);
+      return;
+    }
+
+    if (tier === 'free') {
+      // User already on free plan
+      toast({
+        title: "You're already on the Free plan",
+        description: "Enjoy your 5 scans per month",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { tier },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // Redirect to Stripe checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      toast({
+        title: "Checkout Error",
+        description: "There was a problem starting the checkout process. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
@@ -118,7 +208,13 @@ const Pricing = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {pricingPlans.map((plan, index) => (
-              <PricingPlan key={index} plan={plan} />
+              <PricingPlan 
+                key={index} 
+                plan={plan} 
+                currentTier={currentTier} 
+                handleSubscribe={handleSubscribe}
+                isProcessing={isProcessing}
+              />
             ))}
           </div>
           

@@ -25,8 +25,8 @@ const ResumeAnalysisHistory = () => {
     navigate(`/results?id=${analysisId}`);
   };
   
-  // Helper function to ensure keywords_found is an array
-  const ensureKeywordsArray = (keywords: unknown): string[] => {
+  // Helper function to ensure keywords_found is an array of the correct format
+  const parseKeywords = (keywords: unknown): Array<string | { word: string; category?: string }> => {
     if (Array.isArray(keywords)) {
       return keywords;
     }
@@ -98,8 +98,7 @@ const ResumeAnalysisHistory = () => {
       <CardContent>
         <div className="space-y-4">
           {analyses.map((analysis: ResumeAnalysis) => {
-            // Ensure keywords_found is an array
-            const keywordsFound = ensureKeywordsArray(analysis.keywords_found);
+            const keywordsFound = parseKeywords(analysis.keywords_found);
             
             return (
               <div key={analysis.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
@@ -118,9 +117,7 @@ const ResumeAnalysisHistory = () => {
                 <div className="flex space-x-2 mb-3">
                   {keywordsFound.slice(0, 3).map((keyword, i) => (
                     <Badge key={i} variant="secondary" className="bg-green-100 text-green-800">
-                      {typeof keyword === 'string' ? keyword : 
-                       (keyword && typeof keyword === 'object' && 'word' in keyword) ? 
-                        keyword.word : 'Keyword'}
+                      {typeof keyword === 'string' ? keyword : keyword.word}
                     </Badge>
                   ))}
                   {keywordsFound.length > 3 && (

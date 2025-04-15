@@ -2,14 +2,16 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, X, User } from "lucide-react";
+import { Menu, X, User, Bot, Sparkles } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSubscription } from '@/hooks/useSubscription';
 
 const NavBar = () => {
   const [isOpen, setIsOpen] = React.useState(false);
   const { user } = useAuth();
+  const { tier, canAccessAICoach } = useSubscription();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -54,6 +56,18 @@ const NavBar = () => {
               <Link to="/scan" className="text-gray-700 hover:text-scanmatch-600 font-medium transition-colors">
                 Scan Resume
               </Link>
+              
+              <Link 
+                to="/ai-coach" 
+                className="text-gray-700 hover:text-scanmatch-600 font-medium transition-colors flex items-center"
+              >
+                <Bot className="h-4 w-4 mr-1" />
+                AI Coach
+                {tier === 'premium' && (
+                  <Sparkles className="h-3 w-3 ml-1 text-amber-400" />
+                )}
+              </Link>
+              
               <Link to="/profile" className="text-gray-700 hover:text-scanmatch-600 font-medium transition-colors">
                 Profile
               </Link>
@@ -114,6 +128,19 @@ const NavBar = () => {
                 >
                   Scan Resume
                 </Link>
+                
+                <Link 
+                  to="/ai-coach" 
+                  className="text-gray-700 hover:text-scanmatch-600 font-medium py-2 transition-colors flex items-center"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <Bot className="h-4 w-4 mr-2" />
+                  AI Coach
+                  {tier === 'premium' && (
+                    <Sparkles className="h-3 w-3 ml-1 text-amber-400" />
+                  )}
+                </Link>
+                
                 <Link 
                   to="/profile" 
                   className="text-gray-700 hover:text-scanmatch-600 font-medium py-2 transition-colors"

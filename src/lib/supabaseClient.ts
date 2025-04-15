@@ -1,5 +1,6 @@
 
 import { createClient } from "@supabase/supabase-js";
+import { SubscriptionTier, UserSubscription } from "./types";
 
 // Get environment variables with fallbacks for development
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -77,4 +78,121 @@ export const getResumeAnalysis = async (id: string) => {
   }
   
   return data;
+};
+
+// Subscription-related functions
+export const getUserSubscription = async (userId: string): Promise<UserSubscription | null> => {
+  const { data, error } = await supabase
+    .from('user_subscriptions')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+  
+  if (error && error.code !== 'PGSQL_ERROR_NO_ROWS') {
+    console.error("Error fetching user subscription:", error);
+    throw error;
+  }
+  
+  // If no subscription found, return default free tier
+  if (!data) {
+    return {
+      user_id: userId,
+      subscription_tier: 'free',
+      scans_used: 0,
+      max_scans: 5,
+    };
+  }
+  
+  return data;
+};
+
+export const initUserSubscription = async (userId: string): Promise<UserSubscription> => {
+  // Check if user already has a subscription
+  const { data: existingSub } = await supabase
+    .from('user_subscriptions')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+  
+  if (existingSub) {
+    return existingSub;
+  }
+  
+  // Create a new free subscription
+  const newSubscription = {
+    user_id: userId,
+    subscription_tier: 'free' as SubscriptionTier,
+    scans_used: 0,
+    max_scans: 5,
+  };
+  
+  const { data, error } = await supabase
+    .from('user_subscriptions')
+    .insert(newSubscription)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error("Error creating user subscription:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const incrementScanCount = async (userId: string): Promise<number> => {
+  // First get the current subscription
+  const { data: subscription } = await supabase
+    .from('user_subscriptions')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+  
+  if (!subscription) {
+    await initUserSubscription(userId);
+    return 1;
+  }
+  
+  const newCount = (subscription.scans_used || 0) + 1;
+  
+  // Update the scan count
+  const { error } = await supabase
+    .from('user_subscriptions')
+    .update({ scans_used: newCount, updated_at: new Date().toISOString() })
+    .eq('user_id', userId);
+  
+  if (error) {
+    console.error("Error incrementing scan count:", error);
+    throw error;
+  }
+  
+  return newCount;
+};
+
+export const canUserScan = async (userId: string): Promise<boolean> => {
+  const subscription = await getUserSubscription(userId);
+  
+  if (!subscription) {
+    return false;
+  }
+  
+  // Free users have scan limits
+  if (subscription.subscription_tier === 'free') {
+    return (subscription.scans_used || 0) < (subscription.max_scans || 5);
+  }
+  
+  // Pro and Premium users can always scan
+  return true;
+};
+
+export const resetScanCount = async (userId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('user_subscriptions')
+    .update({ scans_used: 0, updated_at: new Date().toISOString() })
+    .eq('user_id', userId);
+  
+  if (error) {
+    console.error("Error resetting scan count:", error);
+    throw error;
+  }
 };
