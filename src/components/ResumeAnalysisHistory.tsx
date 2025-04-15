@@ -25,6 +25,24 @@ const ResumeAnalysisHistory = () => {
     navigate(`/results?id=${analysisId}`);
   };
   
+  // Helper function to ensure keywords_found is an array
+  const ensureKeywordsArray = (keywords: unknown): string[] => {
+    if (Array.isArray(keywords)) {
+      return keywords;
+    }
+    
+    if (typeof keywords === 'string') {
+      try {
+        const parsed = JSON.parse(keywords);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    
+    return [];
+  };
+  
   if (isLoading) {
     return (
       <Card>
@@ -79,43 +97,50 @@ const ResumeAnalysisHistory = () => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {analyses.map((analysis: ResumeAnalysis) => (
-            <div key={analysis.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-medium">{analysis.job_title || 'Resume Analysis'}</h3>
-                  <p className="text-sm text-gray-500 flex items-center">
-                    <Clock className="h-3 w-3 mr-1" />
-                    {analysis.created_at && formatDistanceToNow(new Date(analysis.created_at), { addSuffix: true })}
-                  </p>
+          {analyses.map((analysis: ResumeAnalysis) => {
+            // Ensure keywords_found is an array
+            const keywordsFound = ensureKeywordsArray(analysis.keywords_found);
+            
+            return (
+              <div key={analysis.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h3 className="font-medium">{analysis.job_title || 'Resume Analysis'}</h3>
+                    <p className="text-sm text-gray-500 flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {analysis.created_at && formatDistanceToNow(new Date(analysis.created_at), { addSuffix: true })}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="bg-scanmatch-50 text-scanmatch-700">
+                    {analysis.score}%
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="bg-scanmatch-50 text-scanmatch-700">
-                  {analysis.score}%
-                </Badge>
+                <div className="flex space-x-2 mb-3">
+                  {keywordsFound.slice(0, 3).map((keyword, i) => (
+                    <Badge key={i} variant="secondary" className="bg-green-100 text-green-800">
+                      {typeof keyword === 'string' ? keyword : 
+                       (keyword && typeof keyword === 'object' && 'word' in keyword) ? 
+                        keyword.word : 'Keyword'}
+                    </Badge>
+                  ))}
+                  {keywordsFound.length > 3 && (
+                    <Badge variant="secondary" className="bg-green-50 text-green-800">
+                      +{keywordsFound.length - 3} more
+                    </Badge>
+                  )}
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full" 
+                  onClick={() => analysis.id && handleViewAnalysis(analysis.id)}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  View Details
+                </Button>
               </div>
-              <div className="flex space-x-2 mb-3">
-                {analysis.keywords_found.slice(0, 3).map((keyword, i) => (
-                  <Badge key={i} variant="secondary" className="bg-green-100 text-green-800">
-                    {keyword}
-                  </Badge>
-                ))}
-                {analysis.keywords_found.length > 3 && (
-                  <Badge variant="secondary" className="bg-green-50 text-green-800">
-                    +{analysis.keywords_found.length - 3} more
-                  </Badge>
-                )}
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full" 
-                onClick={() => analysis.id && handleViewAnalysis(analysis.id)}
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                View Details
-              </Button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>

@@ -18,15 +18,18 @@ export const supabase = createClient(
   supabaseAnonKey || 'placeholder-key'
 );
 
+// Type definition for keyword objects
+export type KeywordItem = string | { word: string; category?: string };
+
 // Type definition for resume analysis
 export type ResumeAnalysis = {
   id?: string;
   user_id: string;
   score: number;
-  keywords_found: string[];
-  keywords_missing: string[];
-  structure_strengths: string[];
-  structure_improvements: string[];
+  keywords_found: KeywordItem[] | string; // Can be array or stringified JSON
+  keywords_missing: KeywordItem[] | string; // Can be array or stringified JSON
+  structure_strengths: string[] | string; // Can be array or stringified JSON
+  structure_improvements: string[] | string; // Can be array or stringified JSON
   created_at?: string;
   job_title?: string;
 };
