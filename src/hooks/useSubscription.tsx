@@ -27,7 +27,7 @@ export function useSubscription() {
     scansUsed: subscription?.scans_used || 0,
     maxScans: subscription?.max_scans || 5,
     periodEnd: subscription?.subscription_period_end,
-    canAccessAICoach: subscription?.subscription_tier === 'premium',
+    canAccessAICoach: subscription?.subscription_tier === 'pro' || subscription?.subscription_tier === 'premium',
     canSaveAnalyses: subscription?.subscription_tier !== 'free',
     canUnlimitedScans: subscription?.subscription_tier !== 'free',
   };

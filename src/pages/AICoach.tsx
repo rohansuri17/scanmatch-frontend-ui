@@ -57,13 +57,13 @@ const AICoach = () => {
                   <CardContent className="p-6">
                     <div className="flex items-center mb-4">
                       <Sparkles className="h-5 w-5 text-amber-400 mr-2" />
-                      <h2 className="text-xl font-semibold">Premium Feature</h2>
+                      <h2 className="text-xl font-semibold">Pro Feature</h2>
                     </div>
                     <p className="text-gray-600 mb-4">
-                      AI Resume Coach is available exclusively to Premium subscribers. Upgrade now to unlock this feature.
+                      AI Resume Coach is available to Pro and Premium subscribers. Upgrade now to unlock this feature.
                     </p>
                     <Button className="w-full bg-scanmatch-600 hover:bg-scanmatch-700" asChild>
-                      <a href="/pricing">Upgrade to Premium</a>
+                      <a href="/pricing">Upgrade to Pro</a>
                     </Button>
                   </CardContent>
                 </Card>

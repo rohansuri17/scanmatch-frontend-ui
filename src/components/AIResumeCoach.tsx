@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, Send, Lock, Sparkles, User, Loader2 } from 'lucide-react';
+import { Bot, Send, Lock, Sparkles, User, Loader2, GraduationCap, BookOpen, FileText } from 'lucide-react';
 
 type Message = {
   id: string;
@@ -39,11 +39,20 @@ const AIResumeCoach = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+  
+  // Suggestion buttons for common questions
+  const suggestionButtons = [
+    "How do I highlight transferable skills?",
+    "Help me write a strong summary section",
+    "How should I list my education with no experience?",
+  ];
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, suggestedInput?: string) => {
     e.preventDefault();
     
-    if (!input.trim()) return;
+    const messageContent = suggestedInput || input;
+    if (!messageContent.trim()) return;
+    
     if (!user) {
       toast({
         title: "Not logged in",
@@ -55,8 +64,8 @@ const AIResumeCoach = () => {
     
     if (!canAccessAICoach) {
       toast({
-        title: "Premium Feature",
-        description: "AI Resume Coach is only available to Premium subscribers",
+        title: "Pro Feature",
+        description: "AI Resume Coach is available to Pro subscribers",
         variant: "destructive",
       });
       return;
@@ -65,7 +74,7 @@ const AIResumeCoach = () => {
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input,
+      content: messageContent,
       timestamp: new Date(),
     };
     
@@ -75,7 +84,7 @@ const AIResumeCoach = () => {
     
     try {
       const { data, error } = await supabase.functions.invoke('ai-resume-coach', {
-        body: { message: input },
+        body: { message: messageContent },
       });
       
       if (error) throw error;
@@ -152,15 +161,15 @@ const AIResumeCoach = () => {
         <CardContent className="flex-grow flex items-center justify-center">
           <div className="text-center">
             <Sparkles className="h-12 w-12 mx-auto text-amber-400 mb-4" />
-            <h3 className="font-medium text-lg mb-2">Premium Feature</h3>
+            <h3 className="font-medium text-lg mb-2">Pro Feature</h3>
             <p className="text-gray-500 mb-4">
-              Upgrade to the Premium plan to unlock the AI Resume Coach
+              Upgrade to the Pro plan to unlock the AI Resume Coach
             </p>
             <Button 
               className="bg-scanmatch-600 hover:bg-scanmatch-700"
               onClick={() => window.location.href = '/pricing'}
             >
-              Upgrade to Premium
+              Upgrade to Pro
             </Button>
           </div>
         </CardContent>
@@ -227,6 +236,51 @@ const AIResumeCoach = () => {
           ))}
           <div ref={messagesEndRef} />
         </div>
+        
+        {/* Suggestion buttons */}
+        {messages.length < 3 && (
+          <div className="mb-4">
+            <p className="text-xs text-gray-500 mb-2">Not sure what to ask? Try one of these:</p>
+            <div className="flex flex-wrap gap-2">
+              {suggestionButtons.map((suggestion, index) => (
+                <button
+                  key={index}
+                  onClick={(e) => handleSubmit(e, suggestion)}
+                  className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-full text-gray-700 transition-colors"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Feature highlights */}
+        {messages.length === 1 && (
+          <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-scanmatch-50 p-3 rounded-lg flex items-start">
+              <GraduationCap className="h-5 w-5 text-scanmatch-600 mr-2 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium">Resume Writing</h4>
+                <p className="text-xs text-gray-600">Get help writing effective resume sections</p>
+              </div>
+            </div>
+            <div className="bg-scanmatch-50 p-3 rounded-lg flex items-start">
+              <BookOpen className="h-5 w-5 text-scanmatch-600 mr-2 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium">Interview Prep</h4>
+                <p className="text-xs text-gray-600">Practice answering common questions</p>
+              </div>
+            </div>
+            <div className="bg-scanmatch-50 p-3 rounded-lg flex items-start">
+              <FileText className="h-5 w-5 text-scanmatch-600 mr-2 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium">Cover Letters</h4>
+                <p className="text-xs text-gray-600">Get help drafting compelling cover letters</p>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
       <CardFooter>
         <form onSubmit={handleSubmit} className="w-full flex gap-2">

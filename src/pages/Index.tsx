@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { ArrowRight, CheckCircle, Star } from "lucide-react";
+import { ArrowRight, CheckCircle, Star, GraduationCap, BookOpen, Briefcase, FileText, Upload, BarChart } from "lucide-react";
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 
@@ -17,10 +18,10 @@ const Index = () => {
             <div className="flex flex-col md:flex-row items-center gap-12">
               <div className="md:w-1/2 space-y-6">
                 <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-                  Match Your Resume to <span className="text-scanmatch-600">Any Job</span> with AI
+                  Land Your First Job. <span className="text-scanmatch-600">Or Your Next Chapter.</span>
                 </h1>
                 <p className="text-xl text-gray-600">
-                  Upload your resume and a job description to get instant feedback, keyword matching, and personalized improvement suggestions.
+                  AI-powered resume feedback built for new grads and career shifters. We'll help you tailor your resume—even if you're starting from scratch.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 pt-4">
                   <Button className="bg-scanmatch-600 hover:bg-scanmatch-700 text-lg py-6" size="lg" asChild>
@@ -31,6 +32,24 @@ const Index = () => {
                   <Button variant="outline" size="lg" className="text-lg py-6" asChild>
                     <Link to="/pricing">View Pricing</Link>
                   </Button>
+                </div>
+                
+                {/* Progress Cards */}
+                <div className="flex flex-wrap gap-4 pt-2">
+                  <div className="bg-white rounded-lg px-3 py-2 shadow-sm border border-gray-100 flex items-center">
+                    <GraduationCap className="h-5 w-5 text-scanmatch-600 mr-2" />
+                    <span className="text-sm font-medium">Graduating Soon?</span>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg px-3 py-2 shadow-sm border border-gray-100 flex items-center">
+                    <Briefcase className="h-5 w-5 text-scanmatch-600 mr-2" />
+                    <span className="text-sm font-medium">Pivoting Careers?</span>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg px-3 py-2 shadow-sm border border-gray-100 flex items-center">
+                    <FileText className="h-5 w-5 text-scanmatch-600 mr-2" />
+                    <span className="text-sm font-medium">No Experience? No Problem.</span>
+                  </div>
                 </div>
                 
                 {/* Trust Markers */}
@@ -51,7 +70,7 @@ const Index = () => {
                     alt="Resume Analysis Dashboard" 
                     className="rounded-lg w-full"
                     onError={(e) => {
-                      e.currentTarget.src = "https://placehold.co/600x400/e0ebff/2464ff?text=Resume+Analysis+Dashboard";
+                      e.currentTarget.src = "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=600";
                     }}
                   />
                   <div className="absolute -bottom-4 -right-4 bg-scanmatch-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
@@ -63,7 +82,7 @@ const Index = () => {
           </div>
         </section>
         
-        {/* Features Section */}
+        {/* Step-by-Step UI Flow */}
         <section className="py-16 bg-white">
           <div className="container-custom">
             <div className="text-center mb-12">
@@ -74,35 +93,52 @@ const Index = () => {
             </div>
             
             <div className="grid md:grid-cols-3 gap-8">
-              <div className="bg-scanmatch-50 rounded-xl p-6 border border-scanmatch-100">
-                <div className="bg-scanmatch-100 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                  <span className="text-scanmatch-700 font-bold text-xl">1</span>
+              <div className="bg-scanmatch-50 rounded-xl p-6 border border-scanmatch-100 relative">
+                <div className="bg-scanmatch-600 text-white rounded-full w-10 h-10 flex items-center justify-center mb-6 absolute -top-4 -left-4">
+                  <span className="font-bold text-lg">1</span>
                 </div>
-                <h3 className="text-xl font-semibold mb-3">Upload & Scan</h3>
-                <p className="text-gray-600">
-                  Upload your resume and paste the job description you're interested in.
-                </p>
+                <div className="pt-4">
+                  <Upload className="h-10 w-10 text-scanmatch-600 mb-4" />
+                  <h3 className="text-xl font-semibold mb-3">Upload Resume</h3>
+                  <p className="text-gray-600">
+                    Upload your resume and paste the job description you're interested in.
+                  </p>
+                </div>
               </div>
               
-              <div className="bg-scanmatch-50 rounded-xl p-6 border border-scanmatch-100">
-                <div className="bg-scanmatch-100 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                  <span className="text-scanmatch-700 font-bold text-xl">2</span>
+              <div className="bg-scanmatch-50 rounded-xl p-6 border border-scanmatch-100 relative">
+                <div className="bg-scanmatch-600 text-white rounded-full w-10 h-10 flex items-center justify-center mb-6 absolute -top-4 -left-4">
+                  <span className="font-bold text-lg">2</span>
                 </div>
-                <h3 className="text-xl font-semibold mb-3">Get Detailed Analysis</h3>
-                <p className="text-gray-600">
-                  Receive a comprehensive report with match score, keyword analysis, and structure feedback.
-                </p>
+                <div className="pt-4">
+                  <BarChart className="h-10 w-10 text-scanmatch-600 mb-4" />
+                  <h3 className="text-xl font-semibold mb-3">Get Detailed Analysis</h3>
+                  <p className="text-gray-600">
+                    Receive a comprehensive report with match score, keyword analysis, and structure feedback.
+                  </p>
+                </div>
               </div>
               
-              <div className="bg-scanmatch-50 rounded-xl p-6 border border-scanmatch-100">
-                <div className="bg-scanmatch-100 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                  <span className="text-scanmatch-700 font-bold text-xl">3</span>
+              <div className="bg-scanmatch-50 rounded-xl p-6 border border-scanmatch-100 relative">
+                <div className="bg-scanmatch-600 text-white rounded-full w-10 h-10 flex items-center justify-center mb-6 absolute -top-4 -left-4">
+                  <span className="font-bold text-lg">3</span>
                 </div>
-                <h3 className="text-xl font-semibold mb-3">Optimize & Apply</h3>
-                <p className="text-gray-600">
-                  Use our AI suggestions to improve your resume and increase your chances of getting interviews.
-                </p>
+                <div className="pt-4">
+                  <FileText className="h-10 w-10 text-scanmatch-600 mb-4" />
+                  <h3 className="text-xl font-semibold mb-3">Optimize & Apply</h3>
+                  <p className="text-gray-600">
+                    Use our AI suggestions to improve your resume and increase your chances of getting interviews.
+                  </p>
+                </div>
               </div>
+            </div>
+            
+            <div className="flex justify-center mt-10">
+              <Button className="bg-scanmatch-600 hover:bg-scanmatch-700" size="lg" asChild>
+                <Link to="/scan">
+                  Start Now <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
             </div>
           </div>
         </section>
@@ -125,7 +161,7 @@ const Index = () => {
                   ))}
                 </div>
                 <p className="text-gray-700 mb-4">
-                  "ScanMatch helped me understand why I wasn't getting callbacks. After optimizing my resume based on their suggestions, I landed 4 interviews in 2 weeks!"
+                  "I had no internships but still landed a role thanks to this tool! ScanMatch helped me understand why I wasn't getting callbacks. After optimizing my resume, I landed 4 interviews in 2 weeks!"
                 </p>
                 <div className="flex items-center">
                   <div className="bg-scanmatch-100 w-10 h-10 rounded-full flex items-center justify-center text-scanmatch-700 font-medium mr-3">
@@ -133,7 +169,7 @@ const Index = () => {
                   </div>
                   <div>
                     <h4 className="font-semibold">Jessica D.</h4>
-                    <p className="text-sm text-gray-500">Marketing Specialist</p>
+                    <p className="text-sm text-gray-500">New Graduate, Marketing</p>
                   </div>
                 </div>
               </div>
@@ -145,7 +181,7 @@ const Index = () => {
                   ))}
                 </div>
                 <p className="text-gray-700 mb-4">
-                  "The keyword analysis was eye-opening. I was missing critical terms that recruiters were looking for. ScanMatch helped me tailor my resume perfectly."
+                  "After 10 years in retail, this helped me shift into a marketing role. The keyword analysis was eye-opening. I was missing critical terms that recruiters were looking for."
                 </p>
                 <div className="flex items-center">
                   <div className="bg-scanmatch-100 w-10 h-10 rounded-full flex items-center justify-center text-scanmatch-700 font-medium mr-3">
@@ -153,7 +189,7 @@ const Index = () => {
                   </div>
                   <div>
                     <h4 className="font-semibold">Michael T.</h4>
-                    <p className="text-sm text-gray-500">Software Engineer</p>
+                    <p className="text-sm text-gray-500">Career Changer</p>
                   </div>
                 </div>
               </div>
@@ -187,7 +223,7 @@ const Index = () => {
             <div className="text-center max-w-3xl mx-auto">
               <h2 className="text-3xl font-bold mb-4">Ready to Optimize Your Resume?</h2>
               <p className="text-xl mb-8">
-                Get started for free and see how your resume matches up to your dream job.
+                We know job hunting is tough when you don't have years of experience. That's why we built this.
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <Button className="bg-white text-scanmatch-600 hover:bg-gray-100 text-lg py-6" size="lg" asChild>

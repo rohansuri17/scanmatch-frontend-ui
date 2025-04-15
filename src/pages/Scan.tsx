@@ -1,20 +1,20 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Link, useNavigate } from "react-router-dom";
-import { File, Upload, Loader2 } from "lucide-react";
+import { File, Upload, Loader2, GraduationCap, BookOpen } from "lucide-react";
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { saveResumeAnalysis } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from '@/hooks/useSubscription';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-
-
 
 const Scan = () => {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -23,6 +23,7 @@ const Scan = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { checkCanScan, incrementScan } = useSubscription();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -41,6 +42,15 @@ const Scan = () => {
 
   const readFileAsText = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
+      if (file.type === 'text/plain') {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target?.result as string);
+        reader.onerror = reject;
+        reader.readAsText(file);
+        return;
+      }
+      
+      // For PDF files
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
@@ -63,8 +73,6 @@ const Scan = () => {
       reader.readAsArrayBuffer(file);
     });
   };
-  
-  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,10 +84,32 @@ const Scan = () => {
       setError('Please enter a job description');
       return;
     }
+    
+    // Check if user can scan based on their subscription
+    if (user) {
+      try {
+        const canScan = await checkCanScan();
+        if (!canScan) {
+          toast.error("Scan limit reached", {
+            description: "Please upgrade your plan to continue scanning resumes",
+          });
+          navigate('/pricing');
+          return;
+        }
+      } catch (err) {
+        console.error("Error checking scan capability:", err);
+      }
+    }
+    
     setIsLoading(true);
     setError('');
     try {
       const resumeText = await readFileAsText(resumeFile);
+      
+      // Store resume text and job description in session storage
+      sessionStorage.setItem('resumeText', resumeText);
+      sessionStorage.setItem('jobDescription', jobDescription);
+      
       const { data, error: functionError } = await supabase.functions.invoke('resume-scan', {
         body: { resumeText, jobDescription },
       });
@@ -107,6 +137,9 @@ const Scan = () => {
       }
 
       if (user) {
+        // Increment scan count for the user
+        await incrementScan();
+        
         const analysisData = {
           user_id: user.id,
           score: data.score,
@@ -145,12 +178,32 @@ const Scan = () => {
               <p className="text-gray-600">
                 Upload your resume and paste the job description to get a detailed match analysis
               </p>
+              
+              <div className="flex justify-center space-x-6 mt-6">
+                <div className="flex flex-col items-center">
+                  <div className="bg-scanmatch-100 w-12 h-12 rounded-full flex items-center justify-center text-scanmatch-800 mb-2">
+                    <GraduationCap size={24} />
+                  </div>
+                  <p className="text-sm font-medium">New Graduate?</p>
+                  <p className="text-xs text-gray-500">We'll help you stand out</p>
+                </div>
+                
+                <div className="flex flex-col items-center">
+                  <div className="bg-scanmatch-100 w-12 h-12 rounded-full flex items-center justify-center text-scanmatch-800 mb-2">
+                    <BookOpen size={24} />
+                  </div>
+                  <p className="text-sm font-medium">Switching Careers?</p>
+                  <p className="text-xs text-gray-500">Highlight your transferable skills</p>
+                </div>
+              </div>
             </div>
+            
             {error && (
               <Alert variant="destructive" className="mb-6">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+            
             <form onSubmit={handleSubmit}>
               <Card className="mb-6">
                 <CardHeader>
@@ -186,8 +239,17 @@ const Scan = () => {
                       onChange={handleFileChange}
                     />
                   </div>
+                  
+                  <div className="mt-4 text-center">
+                    <Button variant="link" size="sm" className="text-scanmatch-600" asChild>
+                      <a href="#" target="_blank" rel="noopener noreferrer">
+                        Don't have a resume yet? Download a template
+                      </a>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
+              
               <Card className="mb-6">
                 <CardHeader>
                   <CardTitle>Job Description</CardTitle>
@@ -204,6 +266,7 @@ const Scan = () => {
                   />
                 </CardContent>
               </Card>
+              
               <div className="flex flex-col sm:flex-row gap-4 justify-end">
                 <Button variant="outline" type="button" asChild>
                   <Link to="/">Cancel</Link>
