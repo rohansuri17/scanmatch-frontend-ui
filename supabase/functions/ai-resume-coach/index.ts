@@ -23,7 +23,7 @@ serve(async (req) => {
   try {
     logStep("Starting AI coach request");
     const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey) throw new Error("OPENAI_API_KEY is not set");
+    if (!openaiKey) throw new Error("OPENAI_API_KEY is not set in Supabase environment");
 
     // Create Supabase client with service role key
     const supabaseClient = createClient(
@@ -109,6 +109,7 @@ Always speak in a professional, helpful tone, and never guess when unsure — as
       model: "gpt-4o-mini",
       messages: messages as any,
       max_tokens: 1000,
+      temperature: 0.7,
     });
     
     const aiResponse = completion.choices[0].message.content;
@@ -120,7 +121,8 @@ Always speak in a professional, helpful tone, and never guess when unsure — as
         await supabaseClient.from("ai_coach_conversations").insert({
           user_id: user.id,
           user_message: message,
-          ai_response: aiResponse
+          ai_response: aiResponse,
+          created_at: new Date().toISOString()
         });
         logStep("Saved conversation to database");
       } catch (error) {
