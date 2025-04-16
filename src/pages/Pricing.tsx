@@ -147,7 +147,7 @@ const PricingPlan = ({
 };
 
 const Pricing = () => {
-  const { user, loading } = useAuth();
+  const { user, isLoading } = useAuth(); // Changed 'loading' to 'isLoading' to match useAuth hook
   const { tier: currentTier } = useSubscription();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);

@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/hooks/useAuth';
-import { ResumeAnalysisHistory } from '@/components/ResumeAnalysisHistory';
+import ResumeAnalysisHistory from '@/components/ResumeAnalysisHistory';
 import { Loader2, Settings, ClipboardList } from 'lucide-react';
 import AccountSettings from '@/components/AccountSettings';
 import SubscriptionSettings from '@/components/SubscriptionSettings';

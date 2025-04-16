@@ -52,6 +52,11 @@ export function useSubscription() {
     return await canUserScan(user.id);
   };
 
+  // Add refreshSubscription function to match what's used in SubscriptionSettings
+  const refreshSubscription = async () => {
+    return await refetch();
+  };
+
   // Clean up loading state when subscription query completes
   useEffect(() => {
     if (!isSubscriptionLoading) {
@@ -64,6 +69,7 @@ export function useSubscription() {
     ...subscriptionInfo,
     isLoading,
     refetch,
+    refreshSubscription,
     incrementScan,
     checkCanScan,
   };
