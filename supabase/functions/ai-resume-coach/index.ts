@@ -105,36 +105,74 @@ Always speak in a professional, helpful tone, and never guess when unsure — as
     messages.push({ role: "user", content: message });
     
     logStep("Sending request to OpenAI");
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: messages as any,
-      max_tokens: 1000,
-      temperature: 0.7,
-    });
-    
-    const aiResponse = completion.choices[0].message.content;
-    logStep("Received response from OpenAI");
-
-    // Save message history to database for premium users only
-    if (tier === "premium" || isAdmin) {
-      try {
-        await supabaseClient.from("ai_coach_conversations").insert({
-          user_id: user.id,
-          user_message: message,
-          ai_response: aiResponse,
-          created_at: new Date().toISOString()
-        });
-        logStep("Saved conversation to database");
-      } catch (error) {
-        console.error("Error saving conversation:", error);
-        // Don't fail the request if saving fails
+    // Try to handle both older and newer OpenAI SDK formats
+    try {
+      // First attempt using newer format
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: messages as any,
+        max_tokens: 1000,
+        temperature: 0.7,
+      });
+      
+      const aiResponse = completion.choices[0].message.content;
+      logStep("Received response from OpenAI (new format)");
+      
+      // Save message history to database for premium users only
+      if (tier === "premium" || isAdmin) {
+        try {
+          await supabaseClient.from("ai_coach_conversations").insert({
+            user_id: user.id,
+            user_message: message,
+            ai_response: aiResponse,
+            created_at: new Date().toISOString()
+          });
+          logStep("Saved conversation to database");
+        } catch (error) {
+          console.error("Error saving conversation:", error);
+          // Don't fail the request if saving fails
+        }
       }
+      
+      return new Response(JSON.stringify({ message: aiResponse }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    } catch (error) {
+      // If newer format fails, try older format
+      console.log("Failed with newer OpenAI format, trying older format:", error);
+      
+      const completion = await openai.createChatCompletion({
+        model: "gpt-4o-mini",
+        messages: messages as any,
+        max_tokens: 1000,
+        temperature: 0.7,
+      });
+      
+      const aiResponse = completion.data.choices[0].message?.content || "Sorry, I couldn't generate a response.";
+      logStep("Received response from OpenAI (old format)");
+      
+      // Save message history to database for premium users only
+      if (tier === "premium" || isAdmin) {
+        try {
+          await supabaseClient.from("ai_coach_conversations").insert({
+            user_id: user.id,
+            user_message: message,
+            ai_response: aiResponse,
+            created_at: new Date().toISOString()
+          });
+          logStep("Saved conversation to database");
+        } catch (error) {
+          console.error("Error saving conversation:", error);
+          // Don't fail the request if saving fails
+        }
+      }
+      
+      return new Response(JSON.stringify({ message: aiResponse }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
     }
-
-    return new Response(JSON.stringify({ message: aiResponse }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`[AI-RESUME-COACH ERROR] ${errorMessage}`);

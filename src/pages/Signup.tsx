@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +7,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -46,7 +45,7 @@ const Signup = () => {
     setIsLoading(true);
     
     try {
-      const { error } = await supabase.auth.signUp({
+      const { error, data } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -57,6 +56,40 @@ const Signup = () => {
       });
       
       if (error) throw error;
+      
+      if (data.user) {
+        try {
+          const { error: subError } = await supabase
+            .from('user_subscriptions')
+            .insert({
+              user_id: data.user.id,
+              subscription_tier: 'free',
+              scans_used: 0,
+              max_scans: 5,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+            
+          if (subError) {
+            console.error("Error creating subscription:", subError);
+          }
+          
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .insert({
+              user_id: data.user.id,
+              full_name: name,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+            
+          if (profileError) {
+            console.error("Error creating profile:", profileError);
+          }
+        } catch (initError) {
+          console.error("Error initializing user data:", initError);
+        }
+      }
       
       toast({
         title: "Account created",
@@ -75,7 +108,6 @@ const Signup = () => {
     }
   };
   
-  // Redirect if already logged in
   if (user) {
     return <Navigate to="/profile" replace />;
   }

@@ -25,3 +25,21 @@ export type UserSubscriptionInfo = {
   canSaveAnalyses: boolean;
   canUnlimitedScans: boolean;
 };
+
+export type UserProfile = {
+  id?: string;
+  user_id: string;
+  full_name?: string;
+  job_title?: string;
+  industry?: string;
+  company?: string;
+  career_stage?: 'student' | 'entry-level' | 'mid-career' | 'senior' | 'executive';
+  preferred_communication?: 'email' | 'in-app';
+  notification_settings?: {
+    account_updates: boolean;
+    new_features: boolean;
+    tips_and_resources: boolean;
+  };
+  created_at?: string;
+  updated_at?: string;
+};

@@ -1,6 +1,5 @@
-
 import { createClient, User as SupabaseUser } from "@supabase/supabase-js";
-import { SubscriptionTier, UserSubscription } from "./types";
+import { SubscriptionTier, UserSubscription, UserProfile } from "./types";
 
 // Export User type for usage in other files
 export type User = SupabaseUser;
@@ -235,4 +234,58 @@ export const resetScanCount = async (userId: string): Promise<void> => {
     console.error("Error resetting scan count:", error);
     throw error;
   }
+};
+
+// User Profile related functions
+export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+  
+  if (error && error.code !== 'PGSQL_ERROR_NO_ROWS') {
+    console.error("Error fetching user profile:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const createUserProfile = async (profile: Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>): Promise<UserProfile> => {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .insert({
+      ...profile,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    console.error("Error creating user profile:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>): Promise<UserProfile> => {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error("Error updating user profile:", error);
+    throw error;
+  }
+  
+  return data;
 };
