@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +9,7 @@ import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { saveResumeAnalysis } from "@/lib/supabaseClient";
+import { saveResumeAnalysis, saveResumeScanData } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from '@/hooks/useSubscription';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
@@ -139,6 +138,18 @@ const Scan = () => {
       if (user) {
         // Increment scan count for the user
         await incrementScan();
+        
+        // Save scan data
+        try {
+          await saveResumeScanData({
+            user_id: user.id,
+            resume_text: resumeText,
+            job_description: jobDescription,
+            job_title: data.job_title
+          });
+        } catch (error) {
+          console.error("Error saving scan data:", error);
+        }
         
         const analysisData = {
           user_id: user.id,

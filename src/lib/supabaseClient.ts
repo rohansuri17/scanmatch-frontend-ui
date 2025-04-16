@@ -72,12 +72,23 @@ export type ResumeAnalysis = {
   structure_improvements: string[] | string; // Can be array or stringified JSON
   created_at?: string;
   job_title?: string;
+  improvement_suggestions?: string;
 };
 
 export const saveResumeAnalysis = async (analysis: Omit<ResumeAnalysis, 'id' | 'created_at'>) => {
   const { data, error } = await supabase
     .from('resume_analyses')
-    .insert(analysis)
+    .insert({
+      user_id: analysis.user_id,
+      score: analysis.score,
+      keywords_found: analysis.keywords_found,
+      keywords_missing: analysis.keywords_missing,
+      structure_strengths: analysis.structure_strengths,
+      structure_improvements: analysis.structure_improvements,
+      job_title: analysis.job_title,
+      improvement_suggestions: analysis.improvement_suggestions,
+      created_at: new Date().toISOString()
+    })
     .select()
     .single();
   
@@ -288,4 +299,55 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
   }
   
   return data;
+};
+
+export type ResumeScanData = {
+  id: string;
+  user_id: string;
+  resume_text: string;
+  job_description: string;
+  job_title?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export const saveResumeScanData = async (scanData: Omit<ResumeScanData, 'id' | 'created_at' | 'updated_at'>) => {
+  const { data, error } = await supabase
+    .from('resume_scan_data')
+    .insert({
+      ...scanData,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    console.error("Error saving resume scan data:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export type Database = {
+  public: {
+    Tables: {
+      resume_analyses: {
+        Row: ResumeAnalysis;
+        Insert: Omit<ResumeAnalysis, 'id' | 'created_at'>;
+        Update: Partial<Omit<ResumeAnalysis, 'id' | 'created_at'>>;
+      };
+      resume_scan_data: {
+        Row: ResumeScanData;
+        Insert: Omit<ResumeScanData, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<ResumeScanData, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      user_subscriptions: {
+        Row: UserSubscription;
+        Insert: Omit<UserSubscription, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<UserSubscription, 'id' | 'created_at' | 'updated_at'>>;
+      };
+    };
+  };
 };
