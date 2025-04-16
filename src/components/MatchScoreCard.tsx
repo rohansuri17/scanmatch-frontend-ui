@@ -1,77 +1,76 @@
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Trophy } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 
-interface MatchScoreCardProps {
+type Props = {
   score: number;
-}
+};
 
-const MatchScoreCard: React.FC<MatchScoreCardProps> = ({ score }) => {
-  const percentScore = Math.round(score);
+const MatchScoreCard = ({ score }: Props) => {
+  // Determine color based on score
+  let scoreColor = "text-red-500";
+  let progressColor = "bg-red-500";
+  let bgColor = "bg-red-50";
   
-  let scoreMessage = '';
-  let scoreColorClass = '';
-  
-  if (percentScore >= 80) {
-    scoreMessage = "Excellent! Your resume is well-matched for this job.";
-    scoreColorClass = "text-green-600";
-  } else if (percentScore >= 60) {
-    scoreMessage = "Good! With a few adjustments, your resume will be even better.";
-    scoreColorClass = "text-amber-600";
-  } else {
-    scoreMessage = "You're off to a good start! Here's how to make it stronger for this role.";
-    scoreColorClass = "text-blue-600";
+  if (score >= 70) {
+    scoreColor = "text-green-500";
+    progressColor = "bg-green-500";
+    bgColor = "bg-green-50";
+  } else if (score >= 50) {
+    scoreColor = "text-amber-500";
+    progressColor = "bg-amber-500";
+    bgColor = "bg-amber-50";
   }
-  
-  const encouragementMessage = percentScore >= 80 
-    ? "You're in great shape! Just polish a few areas for maximum impact." 
-    : percentScore >= 60 
-    ? "Nice job! With some tuning, this could really shine." 
-    : "You're on the right track — let's level this up together!";
-    
+
   return (
-    <Card className="shadow-md flex flex-col">
+    <Card className="shadow-md h-full">
       <CardHeader>
-        <CardTitle className="flex items-center">
-          <Trophy className="h-5 w-5 text-scanmatch-600 mr-2" />
-          Match Score
-        </CardTitle>
-        <CardDescription>How well your resume matches the job</CardDescription>
+        <CardTitle>Match Score</CardTitle>
       </CardHeader>
-      <CardContent className="flex-grow flex items-center justify-center">
-        <div className="flex flex-col items-center justify-center py-4">
-          <div className="mb-4">
-            <svg className="w-32 h-32" viewBox="0 0 36 36">
-              <path
-                d="M18 2.0845
-                a 15.9155 15.9155 0 0 1 0 31.831
-                a 15.9155 15.9155 0 0 1 0 -31.831"
-                fill="none"
-                stroke="#e6e6e6"
-                strokeWidth="3"
-                strokeDasharray="100, 100"
-              />
-              <path
-                d="M18 2.0845
-                a 15.9155 15.9155 0 0 1 0 31.831
-                a 15.9155 15.9155 0 0 1 0 -31.831"
-                fill="none"
-                stroke={percentScore >= 80 ? "#4ade80" : percentScore >= 60 ? "#fbbf24" : "#60a5fa"}
-                strokeWidth="3"
-                strokeDasharray={`${percentScore}, 100`}
-                className="animate-scoreCircle"
-              />
-              <text x="18" y="20.5" textAnchor="middle" className="font-bold text-3xl">{percentScore}</text>
-            </svg>
+      <CardContent>
+        <div className="flex flex-col items-center justify-center">
+          <div className="relative w-40 h-40 mb-4">
+            {/* Outer circle (background) */}
+            <div className={`w-full h-full rounded-full ${bgColor} flex items-center justify-center`}>
+              {/* Score text */}
+              <div className="text-center">
+                <span className={`text-5xl font-bold ${scoreColor}`}>{score}%</span>
+                <p className="text-sm text-gray-500 mt-1">Match</p>
+              </div>
+            </div>
+            
+            {/* Progress circle (border) */}
+            <div 
+              className="absolute top-0 left-0 w-full h-full"
+              style={{
+                background: `conic-gradient(${progressColor} ${score}%, transparent ${score}%)`,
+                borderRadius: '100%',
+                zIndex: -1,
+              }}
+            ></div>
           </div>
-          <p className={`mt-2 text-center font-medium ${scoreColorClass}`}>{scoreMessage}</p>
-          <p className="mt-2 text-sm text-center text-gray-600">{encouragementMessage}</p>
+          
+          <div className="w-full mt-2">
+            <div className="flex justify-between text-sm text-gray-500 mb-1">
+              <span>Poor</span>
+              <span>Good</span>
+              <span>Excellent</span>
+            </div>
+            <Progress value={score} className="h-2" />
+          </div>
+          
+          <p className="mt-4 text-center text-sm text-gray-600">
+            {score >= 80 ? (
+              "Excellent match! Your resume is well-aligned with this job."
+            ) : score >= 60 ? (
+              "Good match. Some improvements could strengthen your application."
+            ) : (
+              "Your resume needs work to better match this job description."
+            )}
+          </p>
         </div>
       </CardContent>
-      <CardFooter className="pt-0 text-center text-sm text-gray-500">
-        We know job hunting is tough when you don't have years of experience. That's why we built this.
-      </CardFooter>
     </Card>
   );
 };

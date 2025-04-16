@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import AIResumeCoach from '@/components/AIResumeCoach';
@@ -12,6 +12,20 @@ import { ArrowRight, Brain, FileText, MessageCircle, Sparkles } from 'lucide-rea
 const AICoach = () => {
   const { user } = useAuth();
   const { tier, canAccessAICoach } = useSubscription();
+
+  useEffect(() => {
+    // Check if we have stored resume text from the scan results
+    const storedResumeText = sessionStorage.getItem('coachResumeText');
+    const storedJobDescription = sessionStorage.getItem('coachJobDescription');
+    
+    if (storedResumeText && storedJobDescription) {
+      // Store in local storage for AI coach access
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('aiCoachResumeText', storedResumeText);
+        localStorage.setItem('aiCoachJobDescription', storedJobDescription);
+      }
+    }
+  }, []);
   
   return (
     <div className="min-h-screen flex flex-col">

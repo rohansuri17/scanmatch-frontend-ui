@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
+import ContactSalesForm from '@/components/ContactSalesForm';
 
 // Pricing plan data
 const pricingPlans = [
@@ -56,6 +57,7 @@ const pricingPlans = [
       "AI Resume Coach access",
       "3 professional resume rewrites",
       "3 custom cover letters",
+      "Human Recruiter Revision",
       "LinkedIn profile optimization",
       "Priority support",
       "Interview preparation"
@@ -148,6 +150,7 @@ const Pricing = () => {
   const { user, loading } = useAuth();
   const { tier: currentTier } = useSubscription();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showContactForm, setShowContactForm] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -218,15 +221,24 @@ const Pricing = () => {
             ))}
           </div>
           
-          <div className="mt-16 bg-gray-50 rounded-xl p-8 text-center max-w-3xl mx-auto">
-            <h2 className="text-2xl font-bold mb-4">Enterprise Solutions</h2>
-            <p className="text-gray-600 mb-6">
-              Looking for a solution for your recruitment team or career services department?
-              We offer custom enterprise packages with volume discounts.
-            </p>
-            <Button variant="outline" asChild>
-              <Link to="/contact">Contact Sales</Link>
-            </Button>
+          <div className="mt-16 bg-gray-50 rounded-xl p-8 max-w-3xl mx-auto">
+            {!showContactForm ? (
+              <div className="text-center">
+                <h2 className="text-2xl font-bold mb-4">Enterprise Solutions</h2>
+                <p className="text-gray-600 mb-6">
+                  Looking for a solution for your recruitment team or career services department?
+                  We offer custom enterprise packages with volume discounts.
+                </p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowContactForm(true)}
+                >
+                  Contact Sales
+                </Button>
+              </div>
+            ) : (
+              <ContactSalesForm onCancel={() => setShowContactForm(false)} />
+            )}
           </div>
           
           <div className="mt-16">

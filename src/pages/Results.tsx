@@ -16,6 +16,7 @@ import MatchScoreCard from '@/components/MatchScoreCard';
 import KeywordAnalysisCard from '@/components/KeywordAnalysisCard';
 import ResumeStructureCard from '@/components/ResumeStructureCard';
 import SaveResumeCard from '@/components/SaveResumeCard';
+import ImprovementSuggestionsCard from '@/components/ImprovementSuggestionsCard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 
 const Results = () => {
@@ -155,6 +156,13 @@ const Results = () => {
                       analysis.job_title?.toLowerCase().includes('intern') || 
                       analysis.job_title?.toLowerCase().includes('graduate');
   
+  const redirectToAICoach = () => {
+    // Store resume and job description in session for AI Coach
+    sessionStorage.setItem('coachResumeText', resumeText);
+    sessionStorage.setItem('coachJobDescription', jobDescription);
+    navigate('/ai-coach');
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
@@ -276,41 +284,50 @@ const Results = () => {
           </div>
           
           <div className="mb-8">
-            <Card className="shadow-md">
-              <CardHeader>
-                <CardTitle>Improvement Suggestions</CardTitle>
-                <CardDescription>
-                  Actionable steps to enhance your resume for this job
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {improvementSuggestions && improvementSuggestions.length > 0 ? (
-                    improvementSuggestions.map((suggestion: string, index: number) => (
-                      <div key={index} className="p-3 border rounded bg-scanmatch-50">
-                        <p className="text-gray-700">{suggestion}</p>
-                        <div className="mt-2 flex justify-end">
-                          <Button variant="outline" size="sm" className="text-xs">
-                            Rewrite for me
-                          </Button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500">No specific improvement suggestions available.</p>
-                  )}
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-center">
-                <div className="text-center">
-                  <p className="text-sm font-medium mb-2">📤 Want a rewritten resume?</p>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link to="/ai-coach">Try our rewrite assistant</Link>
-                  </Button>
-                </div>
-              </CardFooter>
-            </Card>
+            <ImprovementSuggestionsCard 
+              suggestions={improvementSuggestions} 
+              redirectToAICoach={redirectToAICoach} 
+              canAccess={canAccessAICoach} 
+            />
           </div>
+
+          {tier === 'premium' && (
+            <div className="mb-8">
+              <Card className="shadow-md border-amber-300">
+                <CardHeader className="bg-amber-50">
+                  <CardTitle className="flex items-center text-amber-800">
+                    <GraduationCap className="h-5 w-5 text-amber-600 mr-2" />
+                    Premium Feature: Human Recruiter Revision
+                  </CardTitle>
+                  <CardDescription className="text-amber-700">
+                    Get your resume professionally reviewed by a certified recruiter
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <p className="text-gray-600 mb-4">
+                    As a Premium member, you can submit your resume for professional review by one of our 
+                    certified recruiters with industry experience. Receive personalized feedback and a 
+                    fully rewritten resume within 48 hours.
+                  </p>
+                  <form className="space-y-4">
+                    <div className="space-y-2">
+                      <label htmlFor="additional-info" className="text-sm font-medium">
+                        Additional Information for the Recruiter
+                      </label>
+                      <textarea 
+                        id="additional-info" 
+                        className="w-full border rounded-md p-2 min-h-[100px]"
+                        placeholder="Add any specific concerns or questions you have about your resume..."
+                      ></textarea>
+                    </div>
+                    <Button className="bg-amber-600 hover:bg-amber-700 w-full" type="submit">
+                      Submit for Human Review
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          )}
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button variant="outline" size="lg" className="flex items-center" asChild>

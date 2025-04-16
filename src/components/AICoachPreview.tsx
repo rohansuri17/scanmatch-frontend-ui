@@ -57,7 +57,7 @@ const AICoachPreview = () => {
         </Button>
         
         {!canAccess && (
-          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-md">
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-md z-10">
             <div className="text-center p-2">
               <Lock className="h-5 w-5 mx-auto mb-1 text-scanmatch-600" />
               <p className="text-sm font-medium text-gray-800 mb-1">Pro Feature</p>

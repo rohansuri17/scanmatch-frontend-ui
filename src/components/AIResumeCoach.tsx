@@ -20,17 +20,43 @@ const AIResumeCoach = () => {
   const { user } = useAuth();
   const { tier, canAccessAICoach } = useSubscription();
   const { toast } = useToast();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'system',
-      content: "Hello! I'm your AI Resume Coach. I can help you improve your resume, prepare for interviews, and optimize your job application. What would you like help with today?",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Initialize with welcome message
+    if (isInitializing) {
+      setIsInitializing(false);
+      
+      const welcomeMessage: Message = {
+        id: '1',
+        role: 'system',
+        content: "Hello! I'm your AI Resume Coach. I can help you improve your resume, prepare for interviews, and optimize your job application. What would you like help with today?",
+        timestamp: new Date(),
+      };
+      
+      setMessages([welcomeMessage]);
+      
+      // Check if we have stored resume and job description from previous scan
+      const resumeText = localStorage.getItem('aiCoachResumeText');
+      const jobDescription = localStorage.getItem('aiCoachJobDescription');
+      
+      if (resumeText && jobDescription && canAccessAICoach) {
+        // If we have both, send system message about context
+        const contextMessage: Message = {
+          id: '2',
+          role: 'system',
+          content: "I see you've scanned a resume earlier. I have access to both your resume and the job description you're targeting. Would you like specific advice on how to better align your resume with this job opportunity?",
+          timestamp: new Date(Date.now() + 100), // Slightly after welcome message
+        };
+        
+        setMessages(prev => [...prev, contextMessage]);
+      }
+    }
+  }, [isInitializing, canAccessAICoach]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -83,8 +109,16 @@ const AIResumeCoach = () => {
     setIsLoading(true);
     
     try {
+      // Get resume and job description from localStorage if available
+      const resumeText = localStorage.getItem('aiCoachResumeText') || '';
+      const jobDescription = localStorage.getItem('aiCoachJobDescription') || '';
+      
       const { data, error } = await supabase.functions.invoke('ai-resume-coach', {
-        body: { message: messageContent },
+        body: { 
+          message: messageContent,
+          resumeText,
+          jobDescription
+        },
       });
       
       if (error) throw error;
@@ -137,8 +171,8 @@ const AIResumeCoach = () => {
             <p className="text-gray-500 mb-4">
               You need to be logged in to use the AI Resume Coach
             </p>
-            <Button className="bg-scanmatch-600 hover:bg-scanmatch-700">
-              Log In
+            <Button className="bg-scanmatch-600 hover:bg-scanmatch-700" asChild>
+              <a href="/login">Log In</a>
             </Button>
           </div>
         </CardContent>
