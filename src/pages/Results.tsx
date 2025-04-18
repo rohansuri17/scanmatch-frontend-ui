@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -18,6 +17,7 @@ import ResumeStructureCard from '@/components/ResumeStructureCard';
 import SaveResumeCard from '@/components/SaveResumeCard';
 import ImprovementSuggestionsCard from '@/components/ImprovementSuggestionsCard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import ProgressTracker from '@/components/ProgressTracker';
 
 const Results = () => {
   const location = useLocation();
@@ -157,7 +157,6 @@ const Results = () => {
                       analysis.job_title?.toLowerCase().includes('graduate');
   
   const redirectToAICoach = () => {
-    // Store resume and job description in session for AI Coach
     sessionStorage.setItem('coachResumeText', resumeText);
     sessionStorage.setItem('coachJobDescription', jobDescription);
     navigate('/ai-coach');
@@ -187,19 +186,7 @@ const Results = () => {
             </div>
             
             <h1 className="text-3xl font-bold mb-1">Resume Analysis Results</h1>
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              {analysis.job_title && (
-                <div className="text-gray-700 flex items-center">
-                  <Briefcase className="h-4 w-4 mr-1" /> 
-                  {analysis.job_title}
-                  {isEntryLevel && (
-                    <span className="ml-2">
-                      <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-200">Entry-Level</Badge>
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
+            <p className="text-gray-600">Let's make your resume stand out!</p>
           </div>
           
           {!user && <SaveResumeCard />}
