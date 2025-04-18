@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,8 +124,7 @@ const Learn = () => {
   const [filter, setFilter] = useState('all');
   const [progress, setProgress] = useState(0);
   const { user } = useAuth();
-  const { subscriptionInfo } = useSubscription();
-  const navigate = useNavigate();
+  const subscription = useSubscription();
   
   // Calculate progress based on completed resources
   useEffect(() => {
@@ -158,7 +156,7 @@ const Learn = () => {
     : resources.filter(r => r.category === filter);
   
   // Check if user has access to personalized learning
-  const canAccessPersonalizedLearning = subscriptionInfo?.tier !== 'free';
+  const canAccessPersonalizedLearning = subscription?.tier !== 'free';
   
   return (
     <div className="min-h-screen flex flex-col">

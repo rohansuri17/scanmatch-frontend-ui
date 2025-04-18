@@ -6,7 +6,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowRight, MessageSquare, Send, Loader2, ThumbsUp, ThumbsDown, User, Copy, Briefcase, Lightbulb, Brain, CheckCircle2, Stars } from "lucide-react";
+import { 
+  ArrowRight, 
+  MessageSquare, 
+  Send, 
+  Loader2, 
+  ThumbsUp, 
+  ThumbsDown, 
+  User, 
+  Copy, 
+  Briefcase, 
+  Lightbulb, 
+  Brain, 
+  CheckCircle2, 
+  Stars,
+  Code,
+  FileText
+} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
@@ -67,7 +83,7 @@ const Interview = () => {
   const [practiceMode, setPracticeMode] = useState(false);
   const [practiceHistory, setPracticeHistory] = useState([]);
   const { user } = useAuth();
-  const { subscriptionInfo } = useSubscription();
+  const subscription = useSubscription();
   const navigate = useNavigate();
   
   const generateQuestion = () => {
@@ -89,7 +105,7 @@ const Interview = () => {
     setIsLoading(true);
     
     // Check if user has premium access for AI coach
-    const canAccessAICoach = subscriptionInfo?.tier === 'premium';
+    const canAccessAICoach = subscription?.tier === 'premium';
     
     try {
       if (canAccessAICoach && user) {
@@ -154,7 +170,7 @@ const Interview = () => {
   };
   
   // Check if user needs to upgrade for full access
-  const needsUpgrade = !user || (user && subscriptionInfo?.tier !== 'premium');
+  const needsUpgrade = !user || (user && subscription?.tier !== 'premium');
   
   return (
     <div className="min-h-screen flex flex-col">
