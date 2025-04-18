@@ -11,8 +11,9 @@ import Footer from '@/components/Footer';
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from '@/hooks/useSubscription';
 import { toast } from "@/components/ui/sonner";
+import ProgressTracker from '@/components/ProgressTracker';
+import LearningContextNote from '@/components/LearningContextNote';
 
-// Mock learning resources data
 const LEARNING_RESOURCES = [
   {
     id: 1,
@@ -88,7 +89,6 @@ const LEARNING_RESOURCES = [
   }
 ];
 
-// Project ideas data
 const PROJECT_IDEAS = [
   {
     id: 1,
@@ -126,7 +126,6 @@ const Learn = () => {
   const { user } = useAuth();
   const subscription = useSubscription();
   
-  // Calculate progress based on completed resources
   useEffect(() => {
     const completedCount = resources.filter(r => r.completed).length;
     const totalCount = resources.length;
@@ -142,7 +141,6 @@ const Learn = () => {
       )
     );
     
-    // Show completion message
     const resource = resources.find(r => r.id === id);
     if (!resource.completed) {
       toast.success(`${resource.title} marked as completed!`, {
@@ -155,16 +153,26 @@ const Learn = () => {
     ? resources 
     : resources.filter(r => r.category === filter);
   
-  // Check if user has access to personalized learning
   const canAccessPersonalizedLearning = subscription?.tier !== 'free';
   
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
-      
       <main className="flex-grow py-12">
         <div className="container-custom">
+          <ProgressTracker currentStep="learn" className="mb-12" />
+          
           <div className="mb-8">
+            <h1 className="text-3xl md:text-4xl font-bold">Level Up Your Skills</h1>
+            <p className="text-gray-600 mt-2">Build the exact skills employers want to see</p>
+          </div>
+
+          <LearningContextNote 
+            jobTitle={sessionStorage.getItem('jobTitle') || undefined}
+            keywordsMissing={JSON.parse(sessionStorage.getItem('keywordsMissing') || '[]')}
+          />
+          
+          <div className="mb-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold">Learn + Grow</h1>

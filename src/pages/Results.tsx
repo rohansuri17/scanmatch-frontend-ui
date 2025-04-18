@@ -7,7 +7,7 @@ import Footer from '@/components/Footer';
 import ResumeViewer from '@/components/ResumeViewer';
 import { useAuth } from "@/hooks/useAuth";
 import { getResumeAnalysis } from "@/lib/supabaseClient";
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "@/components/ui/sonner";
 import { Badge } from "@/components/ui/badge";
 import AICoachPreview from '@/components/AICoachPreview';
@@ -18,6 +18,7 @@ import SaveResumeCard from '@/components/SaveResumeCard';
 import ImprovementSuggestionsCard from '@/components/ImprovementSuggestionsCard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import ProgressTracker from '@/components/ProgressTracker';
+import NextStepCard from '@/components/NextStepCard';
 
 const Results = () => {
   const location = useLocation();
@@ -167,6 +168,8 @@ const Results = () => {
       <NavBar />
       <main className="flex-grow py-12">
         <div className="container-custom">
+          <ProgressTracker currentStep="resume" className="mb-8 animate-in fade-in-50" />
+          
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
               <Button variant="outline" size="sm" asChild>
@@ -230,53 +233,16 @@ const Results = () => {
                 keywordsMissing={keywordsMissing}
               />
             </div>
-            
-            <div className="lg:col-span-1">
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <FileText className="h-5 w-5 text-scanmatch-600 mr-2" />
-                    AI Resume Coach
-                  </CardTitle>
-                  <CardDescription>
-                    Get personalized advice to improve your resume
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <AICoachPreview />
-                  
-                  <Button 
-                    className="w-full mt-4 bg-scanmatch-600 hover:bg-scanmatch-700"
-                    asChild
-                  >
-                    <Link to="/ai-coach">
-                      Get Personal Resume Advice
-                    </Link>
-                  </Button>
-                  
-                  {!user && (
-                    <p className="text-xs text-gray-500 text-center mt-2">
-                      Log in to access the AI Resume Coach
-                    </p>
-                  )}
-                  
-                  {user && tier === 'free' && (
-                    <p className="text-xs text-gray-500 text-center mt-2">
-                      Upgrade to Pro to access the AI Resume Coach
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+            <div>
+              <NextStepCard currentStep="resume" score={percentScore} />
             </div>
           </div>
           
-          <div className="mb-8">
-            <ImprovementSuggestionsCard 
+          <ImprovementSuggestionsCard 
               suggestions={improvementSuggestions} 
               redirectToAICoach={redirectToAICoach} 
               canAccess={canAccessAICoach} 
             />
-          </div>
 
           {tier === 'premium' && (
             <div className="mb-8">
