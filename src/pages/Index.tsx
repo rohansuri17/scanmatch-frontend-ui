@@ -93,42 +93,75 @@ const Index = () => {
             </div>
             
             <div className="grid md:grid-cols-3 gap-8">
-              <div className="bg-scanmatch-50 rounded-xl p-6 border border-scanmatch-100 relative hover:shadow-md transition-all">
+              {/* Step 1: Resume Readiness */}
+              <div className="bg-scanmatch-50 rounded-xl p-6 border border-scanmatch-100 relative hover:shadow-md transition-all group">
                 <div className="bg-scanmatch-600 text-white rounded-full w-10 h-10 flex items-center justify-center mb-6 absolute -top-4 -left-4">
                   <span className="font-bold text-lg">1</span>
                 </div>
                 <div className="pt-4">
                   <FileText className="h-10 w-10 text-scanmatch-600 mb-4" />
                   <h3 className="text-xl font-semibold mb-3">Resume Readiness</h3>
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 mb-4">
                     Upload your resume and job description. Get an AI analysis with keyword matching and personalized improvement suggestions.
                   </p>
+                  <div className="mt-4">
+                    <Button 
+                      variant="outline" 
+                      className="group-hover:bg-scanmatch-600 group-hover:text-white transition-colors" 
+                      size="sm"
+                      asChild
+                    >
+                      <Link to="/scan">Start Resume Scan</Link>
+                    </Button>
+                  </div>
                 </div>
               </div>
               
-              <div className="bg-scanmatch-50 rounded-xl p-6 border border-scanmatch-100 relative hover:shadow-md transition-all">
+              {/* Step 2: Learn & Grow */}
+              <div className="bg-scanmatch-50 rounded-xl p-6 border border-scanmatch-100 relative hover:shadow-md transition-all group">
                 <div className="bg-scanmatch-600 text-white rounded-full w-10 h-10 flex items-center justify-center mb-6 absolute -top-4 -left-4">
                   <span className="font-bold text-lg">2</span>
                 </div>
                 <div className="pt-4">
                   <BookOpen className="h-10 w-10 text-scanmatch-600 mb-4" />
                   <h3 className="text-xl font-semibold mb-3">Learn & Grow</h3>
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 mb-4">
                     Get a personalized learning roadmap based on your skill gaps. Curated courses and resources to boost your qualifications.
                   </p>
+                  <div className="mt-4">
+                    <Button 
+                      variant="outline" 
+                      className="group-hover:bg-scanmatch-600 group-hover:text-white transition-colors" 
+                      size="sm"
+                      asChild
+                    >
+                      <Link to="/learn">Explore Learning Path</Link>
+                    </Button>
+                  </div>
                 </div>
               </div>
               
-              <div className="bg-scanmatch-50 rounded-xl p-6 border border-scanmatch-100 relative hover:shadow-md transition-all">
+              {/* Step 3: Interview Practice */}
+              <div className="bg-scanmatch-50 rounded-xl p-6 border border-scanmatch-100 relative hover:shadow-md transition-all group">
                 <div className="bg-scanmatch-600 text-white rounded-full w-10 h-10 flex items-center justify-center mb-6 absolute -top-4 -left-4">
                   <span className="font-bold text-lg">3</span>
                 </div>
                 <div className="pt-4">
                   <MessageSquare className="h-10 w-10 text-scanmatch-600 mb-4" />
                   <h3 className="text-xl font-semibold mb-3">Interview Practice</h3>
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 mb-4">
                     Practice with AI-generated interview questions tailored to your resume and target job. Get feedback to improve your answers.
                   </p>
+                  <div className="mt-4">
+                    <Button 
+                      variant="outline" 
+                      className="group-hover:bg-scanmatch-600 group-hover:text-white transition-colors" 
+                      size="sm"
+                      asChild
+                    >
+                      <Link to="/interview">Practice Interviews</Link>
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

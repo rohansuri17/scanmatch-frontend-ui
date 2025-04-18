@@ -16,6 +16,8 @@ import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import SubscriptionSuccess from "./pages/SubscriptionSuccess";
 import AICoach from "./pages/AICoach";
+import Learn from "./pages/Learn";
+import Interview from "./pages/Interview";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +47,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/scan" element={<Scan />} />
             <Route path="/results" element={<Results />} />
+            <Route path="/learn" element={<Learn />} />
+            <Route path="/interview" element={<Interview />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
