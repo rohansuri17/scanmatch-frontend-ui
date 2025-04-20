@@ -19,10 +19,12 @@ const pricingPlans = [
     price: "0",
     description: "Basic resume matching for job seekers",
     features: [
-      "Resume to job description matching",
-      "Basic keyword analysis",
+      "5 Resume Scans per month",
+      "Basic Keyword Analysis and Match Score",
       "Structure suggestions",
-      "Limited to 5 scans per month"
+      "Basic Course Recommendations",
+      "Pay as you go professional resume rewrite",
+      "Pay as you go Human Recruiter Revision"
     ],
     buttonText: "Get Started",
     buttonLink: "/scan",
@@ -36,11 +38,11 @@ const pricingPlans = [
     description: "Advanced features for serious job seekers",
     features: [
       "Unlimited resume scans",
-      "Detailed keyword analysis",
-      "In-depth structure feedback",
+      "Detailed keyword analysis with Match Score",
+      "In-depth Improvement suggestions and Structure Feedback",
       "Save analyses to your account",
-      "1 professional resume rewrite",
-      "Cover letter suggestions"
+      "1 free professional resume rewrite",
+      "Pay as you go Human Recruiter Revision"
     ],
     buttonText: "Upgrade to Pro",
     buttonLink: "/signup",
@@ -55,12 +57,10 @@ const pricingPlans = [
     features: [
       "All Pro features",
       "AI Resume Coach access",
-      "3 professional resume rewrites",
-      "3 custom cover letters",
-      "Human Recruiter Revision",
-      "LinkedIn profile optimization",
       "Priority support",
-      "Interview preparation"
+      "AI Voice Based Interview preparation",
+      "3 professional resume rewrites",
+      "1 free Human Recruiter Revision",
     ],
     buttonText: "Upgrade to Premium",
     buttonLink: "/signup",

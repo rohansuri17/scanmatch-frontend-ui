@@ -1,6 +1,5 @@
-
-import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,13 +11,51 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Menu, X, User, ChevronDown, LogOut, Settings, FileText, BookOpen, MessageSquare } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { signOut } from "@/lib/supabaseClient";
+import { signOut, supabase } from "@/lib/supabaseClient";
 import { toast } from "@/components/ui/sonner";
 
 const NavBar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [hasRecentAnalysis, setHasRecentAnalysis] = useState(false);
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    const checkRecentAnalysis = async () => {
+      if (user) {
+        const { data, error } = await supabase
+          .from('resume_analyses')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (error) {
+          console.error('Error fetching resume analysis:', error);
+          return;
+        }
+        
+        setHasRecentAnalysis(data && data.length > 0);
+      }
+    };
+    
+    checkRecentAnalysis();
+  }, [user]);
+  
+  const handleResumeClick = async (e) => {
+    if (user && hasRecentAnalysis) {
+      e.preventDefault();
+      navigate('/results');
+    } else {
+      // Check localStorage for non-logged-in users
+      const cachedAnalysis = localStorage.getItem('resumeAnalysis');
+      if (cachedAnalysis) {
+        e.preventDefault();
+        navigate('/results');
+      }
+    }
+  };
   
   const handleSignOut = async () => {
     try {
@@ -53,10 +90,10 @@ const NavBar = () => {
                 Home
               </Button>
             </Link>
-            <Link to="/scan">
+            <Link to={hasRecentAnalysis ? "/results" : "/scan"} onClick={handleResumeClick}>
               <Button 
-                variant={isActive('/scan') ? "default" : "ghost"}
-                className={isActive('/scan') ? "bg-scanmatch-100 text-scanmatch-800 hover:bg-scanmatch-200 hover:text-scanmatch-800" : ""}
+                variant={isActive('/scan') || isActive('/results') ? "default" : "ghost"}
+                className={(isActive('/scan') || isActive('/results')) ? "bg-scanmatch-100 text-scanmatch-800 hover:bg-scanmatch-200 hover:text-scanmatch-800" : ""}
               >
                 <FileText className="h-4 w-4 mr-1" /> Resume
               </Button>

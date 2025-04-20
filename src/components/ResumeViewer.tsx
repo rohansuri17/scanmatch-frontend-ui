@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -108,38 +107,20 @@ const ResumeViewer: React.FC<ResumeViewerProps> = ({
   };
   
   return (
-    <Card className="shadow-md">
+    <Card className="w-full">
       <CardHeader>
-        <CardTitle>Document Viewer</CardTitle>
+        <CardTitle>Resume & Job Description</CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="resume" onValueChange={setActiveTab}>
-          <TabsList className="w-full grid grid-cols-2 mb-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="resume">Resume</TabsTrigger>
             <TabsTrigger value="job">Job Description</TabsTrigger>
           </TabsList>
-          <TabsContent value="resume" className="border rounded-md p-4 min-h-[400px] max-h-[600px] overflow-y-auto">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-medium">Your Resume</h3>
-              <div className="flex gap-2">
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded flex items-center">
-                  <span className="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
-                  Found Keywords
-                </span>
-              </div>
-            </div>
+          <TabsContent value="resume" className="mt-4">
             {highlightResumeKeywords(resumeText)}
           </TabsContent>
-          <TabsContent value="job" className="border rounded-md p-4 min-h-[400px] max-h-[600px] overflow-y-auto">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-medium">Job Description</h3>
-              <div className="flex gap-2">
-                <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded flex items-center">
-                  <span className="w-2 h-2 bg-red-500 rounded-full mr-1"></span>
-                  Missing Keywords
-                </span>
-              </div>
-            </div>
+          <TabsContent value="job" className="mt-4">
             {highlightJobKeywords(jobDescription)}
           </TabsContent>
         </Tabs>

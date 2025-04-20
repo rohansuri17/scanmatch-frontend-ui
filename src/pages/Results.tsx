@@ -19,6 +19,7 @@ import ImprovementSuggestionsCard from '@/components/ImprovementSuggestionsCard'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import ProgressTracker from '@/components/ProgressTracker';
 import NextStepCard from '@/components/NextStepCard';
+import { supabase } from "@/lib/supabaseClient";
 
 const Results = () => {
   const location = useLocation();
@@ -43,30 +44,27 @@ const Results = () => {
           setAnalysisId(analysisId);
           const analysis = await getResumeAnalysis(analysisId);
           setAnalysis(analysis);
+          setResumeText(analysis.resume_text || '');
+          setJobDescription(analysis.job_description || '');
           
-          const storedResumeText = sessionStorage.getItem('resumeText') || '';
-          const storedJobDesc = sessionStorage.getItem('jobDescription') || '';
-          setResumeText(storedResumeText);
-          setJobDescription(storedJobDesc);
+          // Store the analysis data in localStorage for Learn page
+          localStorage.setItem('resumeAnalysis', JSON.stringify(analysis));
         } else {
-          const storedAnalysis = sessionStorage.getItem('resumeAnalysis');
-          if (storedAnalysis) {
-            setAnalysis(JSON.parse(storedAnalysis));
-            
-            const storedResumeText = sessionStorage.getItem('resumeText') || '';
-            const storedJobDesc = sessionStorage.getItem('jobDescription') || '';
-            setResumeText(storedResumeText);
-            setJobDescription(storedJobDesc);
+          // For non-logged in users, check localStorage
+          const cachedAnalysis = localStorage.getItem('resumeAnalysis');
+          if (cachedAnalysis) {
+            const parsedAnalysis = JSON.parse(cachedAnalysis);
+            setAnalysis(parsedAnalysis);
+            setResumeText(parsedAnalysis.resume_text || '');
+            setJobDescription(parsedAnalysis.job_description || '');
           } else {
+            // If no cached analysis, redirect to scan page
             navigate('/scan');
-            return;
           }
         }
       } catch (error) {
-        console.error("Error fetching analysis:", error);
-        toast.error("Couldn't load your analysis", {
-          description: "Please try scanning your resume again",
-        });
+        console.error('Error fetching analysis:', error);
+        toast.error('Failed to load analysis');
         navigate('/scan');
       } finally {
         setIsLoading(false);
@@ -74,7 +72,7 @@ const Results = () => {
     };
     
     fetchAnalysis();
-  }, [location.search, user, navigate]);
+  }, [user, location.search, navigate]);
   
   if (isLoading || !analysis) {
     return (
@@ -163,6 +161,18 @@ const Results = () => {
     navigate('/ai-coach');
   };
 
+  const redirectToLearn = () => {
+    // Store the complete analysis object in localStorage
+    console.log('Storing analysis in localStorage:', analysis);
+    localStorage.setItem('resumeAnalysis', JSON.stringify(analysis));
+    
+    // Verify the data was stored correctly
+    const storedData = localStorage.getItem('resumeAnalysis');
+    console.log('Stored data in localStorage:', storedData);
+    
+    navigate('/learn');
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
@@ -185,6 +195,9 @@ const Results = () => {
                 <ChevronRight className="h-4 w-4 mx-1" />
                 <span className="bg-scanmatch-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-1">2</span>
                 Results
+                <ChevronRight className="h-4 w-4 mx-1" />
+                <span className="bg-gray-200 rounded-full w-6 h-6 flex items-center justify-center mr-1">3</span>
+                Learn
               </div>
             </div>
             
@@ -234,7 +247,50 @@ const Results = () => {
               />
             </div>
             <div>
-              <NextStepCard currentStep="resume" score={percentScore} />
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle className="text-xl">Next Steps</CardTitle>
+                  <CardDescription>Continue your journey to job success</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-scanmatch-100 p-2 rounded-full">
+                      <GraduationCap className="h-5 w-5 text-scanmatch-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Personalized Learning Path</h3>
+                      <p className="text-sm text-gray-600">Get custom course recommendations based on your analysis</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="bg-scanmatch-100 p-2 rounded-full">
+                      <Briefcase className="h-5 w-5 text-scanmatch-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Interview Preparation</h3>
+                      <p className="text-sm text-gray-600">Practice with AI-generated questions tailored to your resume</p>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex flex-col gap-2">
+                  <Button 
+                    className="w-full bg-scanmatch-600 hover:bg-scanmatch-700" 
+                    onClick={redirectToLearn}
+                  >
+                    Continue to Learning Path
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                  {canAccessAICoach && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={redirectToAICoach}
+                    >
+                      Get AI Resume Coach Help
+                    </Button>
+                  )}
+                </CardFooter>
+              </Card>
             </div>
           </div>
           
@@ -248,55 +304,22 @@ const Results = () => {
             <div className="mb-8">
               <Card className="shadow-md border-amber-300">
                 <CardHeader className="bg-amber-50">
-                  <CardTitle className="flex items-center text-amber-800">
-                    <GraduationCap className="h-5 w-5 text-amber-600 mr-2" />
-                    Premium Feature: Human Recruiter Revision
-                  </CardTitle>
+                  <CardTitle className="text-amber-800">Premium Feature: Human Recruiter Review</CardTitle>
                   <CardDescription className="text-amber-700">
-                    Get your resume professionally reviewed by a certified recruiter
+                    Get your resume reviewed by an experienced recruiter
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="p-6">
-                  <p className="text-gray-600 mb-4">
-                    As a Premium member, you can submit your resume for professional review by one of our 
-                    certified recruiters with industry experience. Receive personalized feedback and a 
-                    fully rewritten resume within 48 hours.
+                <CardContent>
+                  <p className="text-amber-800 mb-4">
+                    Our recruiters will provide detailed feedback on your resume and help you optimize it for your target role.
                   </p>
-                  <form className="space-y-4">
-                    <div className="space-y-2">
-                      <label htmlFor="additional-info" className="text-sm font-medium">
-                        Additional Information for the Recruiter
-                      </label>
-                      <textarea 
-                        id="additional-info" 
-                        className="w-full border rounded-md p-2 min-h-[100px]"
-                        placeholder="Add any specific concerns or questions you have about your resume..."
-                      ></textarea>
-                    </div>
-                    <Button className="bg-amber-600 hover:bg-amber-700 w-full" type="submit">
-                      Submit for Human Review
+                  <Button className="bg-amber-600 hover:bg-amber-700">
+                    Request Recruiter Review
                     </Button>
-                  </form>
                 </CardContent>
               </Card>
             </div>
           )}
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button variant="outline" size="lg" className="flex items-center" asChild>
-              <Link to="/scan">
-                <ChevronLeft className="mr-2 h-4 w-4" />
-                Scan Another Resume
-              </Link>
-            </Button>
-            
-            <Button className="bg-scanmatch-600 hover:bg-scanmatch-700" size="lg" asChild>
-              <Link to="/ai-coach">
-                Get AI Resume Coaching
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
         </div>
       </main>
       <Footer />

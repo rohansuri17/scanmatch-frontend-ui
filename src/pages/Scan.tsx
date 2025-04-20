@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,6 +23,17 @@ const Scan = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { checkCanScan, incrementScan } = useSubscription();
+
+  const clearAnalysisData = () => {
+    localStorage.removeItem('resumeAnalysisData');
+    sessionStorage.removeItem('resumeText');
+    sessionStorage.removeItem('jobDescription');
+  };
+
+  useEffect(() => {
+    // Clear any existing analysis data when coming back to scan page
+    clearAnalysisData();
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -102,6 +113,8 @@ const Scan = () => {
     
     setIsLoading(true);
     setError('');
+    clearAnalysisData();
+
     try {
       const resumeText = await readFileAsText(resumeFile);
       
@@ -117,25 +130,10 @@ const Scan = () => {
         throw new Error(functionError?.message || 'Error analyzing resume');
       }
 
-      console.log("🔎 Validating GPT structure:");
-      console.log("→ typeof data:", typeof data);
-      console.log("→ data.keywords:", data.keywords);
-      console.log("→ data.keywords.found:", data.keywords?.found);
-      console.log("→ data.structure:", data.structure);
-      console.log("→ data.structure.strengths:", data.structure?.strengths);
-
-      if (
-        !data ||
-        typeof data !== 'object' ||
-        !data.keywords ||
-        !Array.isArray(data.keywords.found) ||
-        !data.structure ||
-        !Array.isArray(data.structure.strengths)
-      ) {
-        throw new Error("Invalid analysis structure returned from Edge Function");
-      }
+      console.log('Resume scan response:', data);
 
       if (user) {
+        // For logged-in users, save to database
         // Increment scan count for the user
         await incrementScan();
         
@@ -154,17 +152,33 @@ const Scan = () => {
         const analysisData = {
           user_id: user.id,
           score: data.score,
-          keywords_found: data.keywords.found.map(k => k.word),
-          keywords_missing: data.keywords.missing.map(k => k.word),
-          structure_strengths: data.structure.strengths,
-          structure_improvements: data.structure.improvements,
+          keywords_found: JSON.stringify(data.keywords.found.map(k => k.word)),
+          keywords_missing: JSON.stringify(data.keywords.missing.map(k => k.word)),
+          structure_strengths: JSON.stringify(data.structure.strengths),
+          structure_improvements: JSON.stringify(data.structure.improvements),
           job_title: data.job_title,
-          improvement_suggestions: data.improvement_suggestions || []
+          improvement_suggestions: data.improvement_suggestions,
+          interview_questions: data.interview_questions
         };
+        console.log('Analysis data to save:', analysisData);
         const savedAnalysis = await saveResumeAnalysis(analysisData);
         navigate(`/results?id=${savedAnalysis.id}`);
       } else {
-        sessionStorage.setItem('resumeAnalysis', JSON.stringify(data));
+        // For non-logged in users, store the complete analysis in localStorage
+        const analysisData = {
+          score: data.score,
+          keywords_found: JSON.stringify(data.keywords.found.map(k => k.word)),
+          keywords_missing: JSON.stringify(data.keywords.missing.map(k => k.word)),
+          structure_strengths: JSON.stringify(data.structure.strengths),
+          structure_improvements: JSON.stringify(data.structure.improvements),
+          job_title: data.job_title,
+          improvement_suggestions: data.improvement_suggestions,
+          interview_questions: data.interview_questions,
+          resume_text: resumeText,
+          job_description: jobDescription
+        };
+        console.log('Analysis data for localStorage:', analysisData);
+        localStorage.setItem('resumeAnalysis', JSON.stringify(analysisData));
         navigate('/results');
       }
     } catch (err: any) {

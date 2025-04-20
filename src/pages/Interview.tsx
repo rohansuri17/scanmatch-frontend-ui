@@ -1,373 +1,532 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { 
-  ArrowRight, 
-  MessageSquare, 
-  Send, 
-  Loader2, 
-  ThumbsUp, 
-  ThumbsDown, 
-  User, 
-  Copy, 
-  Briefcase, 
-  Lightbulb, 
-  Brain, 
-  CheckCircle2, 
-  Stars,
-  Code,
-  FileText
-} from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabaseClient";
+import { toast } from "@/components/ui/sonner";
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
-import { toast } from "@/components/ui/sonner";
-import { useAuth } from "@/hooks/useAuth";
-import { useSubscription } from '@/hooks/useSubscription';
-import { supabase } from "@/integrations/supabase/client";
+import { Loader2, MessageSquare, CheckCircle2, XCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
 
-// Mock interview questions data
-const INTERVIEW_QUESTIONS = {
-  technical: [
-    "What is the difference between var, let, and const in JavaScript?",
-    "Explain how React's virtual DOM works",
-    "What is the time complexity of searching in a hash table?",
-    "How would you optimize a slow SQL query?",
-    "Explain the differences between REST and GraphQL APIs"
-  ],
-  behavioral: [
-    "Tell me about a time when you had to deal with a challenging team member",
-    "Describe a situation where you had to learn a new skill quickly",
-    "How do you prioritize your work when dealing with multiple deadlines?",
-    "Give an example of a project you're particularly proud of",
-    "Tell me about a time you received critical feedback and how you responded"
-  ],
-  resumeBased: [
-    "I see you worked on a project using React. What was the most challenging aspect of it?",
-    "You mentioned leadership experience in your resume. Can you elaborate on your leadership style?",
-    "Your resume indicates you have experience with data analysis. What tools do you use and why?",
-    "Tell me more about this gap in your employment history",
-    "I noticed you changed career paths. What motivated that decision?"
-  ]
-};
+interface QuestionAttempt {
+  id: string;
+  user_answer: string;
+  ai_feedback: string;
+  created_at: string;
+}
 
-const FEEDBACK_TEMPLATES = {
-  technical: [
-    "Your answer demonstrates good technical understanding. Consider adding more specific examples of implementation details.",
-    "Great explanation of the concepts. To improve, try connecting your technical knowledge to real-world applications.",
-    "You've covered the basics well. Consider discussing potential trade-offs or alternative approaches to show depth of knowledge."
-  ],
-  behavioral: [
-    "Strong response using the STAR method. Your example clearly illustrated the situation, task, action, and result.",
-    "Good reflection on your experience. Try to highlight more about what you learned from this situation.",
-    "Effective communication of your approach. Consider quantifying the impact or results of your actions more explicitly."
-  ],
-  resumeBased: [
-    "Your answer aligns well with your resume experience. To strengthen it further, connect this experience to the role you're applying for.",
-    "Good elaboration on your resume information. Consider adding more specifics about your direct contributions.",
-    "Nice job contextualizing your resume experience. For even stronger impact, mention measurable outcomes of your work."
-  ]
-};
+interface InterviewQuestion {
+  question: string;
+  context: string;
+  type: 'technical' | 'behavioral' | 'resume_based';
+  attempts?: QuestionAttempt[];
+}
+
+interface InterviewQA {
+  id: string;
+  question: string;
+  context: string;
+  user_answer: string;
+  ai_feedback: string;
+  type: 'technical' | 'behavioral' | 'resume_based';
+}
+
+interface PracticeSession {
+  id: string;
+  title: string;
+  description: string;
+  created_at: string;
+}
+
+interface ResumeAnalysisSummary {
+  id: string;
+  job_title: string;
+  created_at: string;
+  interview_questions?: {
+    technical: Array<{ question: string; context: string }>;
+    behavioral: Array<{ question: string; context: string }>;
+    resume_based: Array<{ question: string; context: string }>;
+  };
+}
 
 const Interview = () => {
-  const [questionType, setQuestionType] = useState('behavioral');
-  const [currentQuestion, setCurrentQuestion] = useState('');
-  const [answer, setAnswer] = useState('');
-  const [feedback, setFeedback] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [practiceMode, setPracticeMode] = useState(false);
-  const [practiceHistory, setPracticeHistory] = useState([]);
   const { user } = useAuth();
-  const subscription = useSubscription();
+  const { toast } = useToast();
   const navigate = useNavigate();
-  
-  const generateQuestion = () => {
-    // Get a random question from the appropriate category
-    const questions = INTERVIEW_QUESTIONS[questionType];
-    const randomIndex = Math.floor(Math.random() * questions.length);
-    setCurrentQuestion(questions[randomIndex]);
-    setAnswer('');
-    setFeedback('');
-    setPracticeMode(true);
-  };
-  
-  const handleSubmitAnswer = async () => {
-    if (!answer.trim()) {
-      toast.error("Please enter your answer before submitting");
-      return;
+  const [questions, setQuestions] = useState<InterviewQuestion[]>([]);
+  const [currentTab, setCurrentTab] = useState<'technical' | 'behavioral' | 'resume_based'>('technical');
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [userAnswer, setUserAnswer] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [qaHistory, setQaHistory] = useState<InterviewQA[]>([]);
+  const [practiceSessions, setPracticeSessions] = useState<PracticeSession[]>([]);
+  const [currentSession, setCurrentSession] = useState<PracticeSession | null>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [analyses, setAnalyses] = useState<ResumeAnalysisSummary[]>([]);
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState<string>('');
+  const [isLoadingAnalyses, setIsLoadingAnalyses] = useState(false);
+  const [questionAttempts, setQuestionAttempts] = useState<Record<string, QuestionAttempt[]>>({});
+  const [showPreviousAttempts, setShowPreviousAttempts] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      loadResumeAnalyses();
+    } else {
+      loadQuestionsFromLocalStorage();
     }
-    
-    setIsLoading(true);
-    
-    // Check if user has premium access for AI coach
-    const canAccessAICoach = subscription?.tier === 'premium';
+  }, [user]);
+
+  const loadResumeAnalyses = async () => {
+    setIsLoadingAnalyses(true);
+    try {
+      const { data, error } = await supabase
+        .from('resume_analyses')
+        .select('id, job_title, created_at, interview_questions')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setAnalyses(data || []);
+      if (data && data.length > 0) {
+        setSelectedAnalysisId(data[0].id);
+        loadQuestionsFromAnalysis(data[0]);
+      }
+    } catch (error) {
+      console.error('Error loading resume analyses:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load your resume analyses",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingAnalyses(false);
+    }
+  };
+
+  const loadQuestionsFromLocalStorage = () => {
+    try {
+      const analysisData = localStorage.getItem('resumeAnalysis');
+      if (analysisData) {
+        const analysis = JSON.parse(analysisData);
+        if (analysis.interview_questions) {
+          const questions = [
+            ...analysis.interview_questions.technical.map(q => ({ ...q, type: 'technical' as const })),
+            ...analysis.interview_questions.behavioral.map(q => ({ ...q, type: 'behavioral' as const })),
+            ...analysis.interview_questions.resume_based.map(q => ({ ...q, type: 'resume_based' as const }))
+          ];
+          setQuestions(questions);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading questions from localStorage:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load interview questions",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadQuestionsFromAnalysis = (analysis: ResumeAnalysisSummary) => {
+    if (analysis.interview_questions) {
+      const questions = [
+        ...analysis.interview_questions.technical.map(q => ({ ...q, type: 'technical' as const })),
+        ...analysis.interview_questions.behavioral.map(q => ({ ...q, type: 'behavioral' as const })),
+        ...analysis.interview_questions.resume_based.map(q => ({ ...q, type: 'resume_based' as const }))
+      ];
+      setQuestions(questions);
+      setCurrentQuestionIndex(0);
+      setShowFeedback(false);
+      setUserAnswer('');
+    }
+  };
+
+  const loadQuestionAttempts = async (analysisId: string) => {
+    if (!user) return;
     
     try {
-      if (canAccessAICoach && user) {
-        // Real AI feedback using edge function
-        const { data, error } = await supabase.functions.invoke('ai-resume-coach', {
-          body: { 
-            message: `I need feedback on my interview response. Here's the question: "${currentQuestion}". And here's my answer: "${answer}". Please provide constructive feedback on my response, including strengths and specific areas for improvement. Format your response as bullet points.`
-          },
+      const { data, error } = await supabase
+        .from('interview_qa')
+        .select('*')
+        .eq('analysis_id', analysisId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      // Group attempts by question
+      const attempts = (data || []).reduce((acc: Record<string, QuestionAttempt[]>, qa) => {
+        if (!acc[qa.question]) {
+          acc[qa.question] = [];
+        }
+        acc[qa.question].push({
+          id: qa.id,
+          user_answer: qa.user_answer,
+          ai_feedback: qa.ai_feedback,
+          created_at: qa.created_at,
         });
-        
-        if (error) throw new Error(error.message);
-        
-        setFeedback(data.message || "No feedback received");
-      } else {
-        // Mock feedback for non-premium users
-        const feedbacks = FEEDBACK_TEMPLATES[questionType];
-        const randomIndex = Math.floor(Math.random() * feedbacks.length);
-        
-        // Add some delay to simulate AI processing
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        setFeedback(`
-• ${feedbacks[randomIndex]}
+        return acc;
+      }, {});
 
-• Your answer is clear and structured, which is excellent for interview responses.
+      setQuestionAttempts(attempts);
+    } catch (error) {
+      console.error('Error loading question attempts:', error);
+    }
+  };
 
-• Consider adding more specific examples to strengthen your answer.
+  const handleAnalysisChange = async (analysisId: string) => {
+    setSelectedAnalysisId(analysisId);
+    const analysis = analyses.find(a => a.id === analysisId);
+    if (analysis) {
+      loadQuestionsFromAnalysis(analysis);
+      await loadQuestionAttempts(analysisId);
+    }
+  };
 
-• Great job addressing the main question. To improve further, connect your experience directly to the potential employer's needs.
+  const loadPracticeSessions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('interview_practice_sessions')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
 
-*To access more detailed AI-powered feedback, upgrade to Premium.*
-        `);
-      }
-      
-      // Add to practice history
-      setPracticeHistory(prev => [
-        { question: currentQuestion, answer, type: questionType },
-        ...prev
-      ].slice(0, 5));
-      
-    } catch (err) {
-      console.error("Error getting feedback:", err);
-      toast.error("Failed to get feedback", {
-        description: "Please try again later",
+      if (error) throw error;
+      setPracticeSessions(data || []);
+    } catch (error) {
+      console.error('Error loading practice sessions:', error);
+    }
+  };
+
+  const createPracticeSession = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('interview_practice_sessions')
+        .insert([
+          {
+            user_id: user?.id,
+            title: 'New Practice Session',
+            description: 'Practice session created on ' + new Date().toLocaleDateString(),
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+      setCurrentSession(data);
+      setPracticeSessions([data, ...practiceSessions]);
+    } catch (error) {
+      console.error('Error creating practice session:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create practice session",
+        variant: "destructive",
       });
-      setFeedback("We couldn't generate feedback at this time. Please try again later.");
+    }
+  };
+
+  const saveQA = async () => {
+    if (!currentSession) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('interview_qa')
+        .insert([
+          {
+            session_id: currentSession.id,
+            question_type: currentTab,
+            question: questions[currentQuestionIndex].question,
+            context: questions[currentQuestionIndex].context,
+            user_answer: userAnswer,
+            ai_feedback: qaHistory[qaHistory.length - 1]?.ai_feedback || '',
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+      setQaHistory([...qaHistory, data]);
+      toast({
+        title: "Success",
+        description: "Question and answer saved to your practice bank",
+      });
+    } catch (error) {
+      console.error('Error saving Q&A:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save question and answer",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!userAnswer.trim()) {
+      toast({
+        title: "Error",
+        description: "Please provide an answer before submitting",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data, error: functionError } = await supabase.functions.invoke('interview-feedback', {
+        body: {
+          question: questions[currentQuestionIndex].question,
+          answer: userAnswer,
+          context: questions[currentQuestionIndex].context,
+          qa_history: qaHistory,
+        },
+      });
+
+      if (functionError || !data) {
+        throw new Error(functionError?.message || 'Failed to get feedback');
+      }
+
+      // Save to database if user is logged in
+      if (user && selectedAnalysisId) {
+        const { error: saveError } = await supabase
+          .from('interview_qa')
+          .insert({
+            analysis_id: selectedAnalysisId,
+            question: questions[currentQuestionIndex].question,
+            context: questions[currentQuestionIndex].context,
+            user_answer: userAnswer,
+            ai_feedback: data.feedback,
+            question_type: currentTab,
+          });
+
+        if (saveError) throw saveError;
+
+        // Update local state
+        const currentQuestion = questions[currentQuestionIndex].question;
+        setQuestionAttempts(prev => ({
+          ...prev,
+          [currentQuestion]: [
+            ...(prev[currentQuestion] || []),
+            {
+              id: Date.now().toString(),
+              user_answer: userAnswer,
+              ai_feedback: data.feedback,
+              created_at: new Date().toISOString(),
+            },
+          ],
+        }));
+      }
+
+      setQaHistory([
+        ...qaHistory,
+        {
+          id: Date.now().toString(),
+          question: questions[currentQuestionIndex].question,
+          context: questions[currentQuestionIndex].context,
+          user_answer: userAnswer,
+          ai_feedback: data.feedback,
+          type: currentTab,
+        },
+      ]);
+      setShowFeedback(true);
+    } catch (error) {
+      console.error('Error getting feedback:', error);
+      toast({
+        title: "Error",
+        description: "Failed to get AI feedback. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   };
-  
-  const startNewQuestion = () => {
-    setPracticeMode(false);
-    setCurrentQuestion('');
-    setAnswer('');
-    setFeedback('');
+
+  const handleTryAgain = () => {
+    setUserAnswer('');
+    setShowFeedback(false);
   };
-  
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
-  };
-  
-  // Check if user needs to upgrade for full access
-  const needsUpgrade = !user || (user && subscription?.tier !== 'premium');
-  
+
+  const currentQuestionAttempts = questions[currentQuestionIndex]
+    ? questionAttempts[questions[currentQuestionIndex].question] || []
+    : [];
+
+  const filteredQuestions = questions.filter(q => q.type === currentTab);
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <NavBar />
-      
-      <main className="flex-grow py-12">
-        <div className="container-custom">
-          <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold">Interview Practice</h1>
-            <p className="text-gray-600 mt-2">Practice smarter, not harder with AI-powered interview preparation</p>
-          </div>
-          
-          {needsUpgrade && (
-            <Card className="mb-8 bg-gradient-to-r from-scanmatch-50 to-blue-50 border-scanmatch-100">
+      <main className="flex-grow container-custom py-8">
+        {user && (
+          <div className="mb-6">
+            <Card className="shadow-sm border-0">
               <CardContent className="pt-6">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3">
-                    <MessageSquare className="h-10 w-10 text-scanmatch-600 flex-shrink-0" />
-                    <div>
-                      <h3 className="text-lg font-semibold">Upgrade for Advanced Interview Coaching</h3>
-                      <p className="text-gray-600">Premium users get detailed AI feedback and unlimited practice sessions</p>
-                    </div>
-                  </div>
-                  <Button className="bg-scanmatch-600 hover:bg-scanmatch-700" asChild>
-                    <Link to="/pricing">Upgrade Now</Link>
-                  </Button>
-                </div>
+                <Select
+                  value={selectedAnalysisId}
+                  onValueChange={handleAnalysisChange}
+                  disabled={isLoadingAnalyses}
+                >
+                  <SelectTrigger className="w-[300px]">
+                    <SelectValue placeholder="Select a resume analysis" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {analyses.map((analysis) => (
+                      <SelectItem key={analysis.id} value={analysis.id}>
+                        {analysis.job_title} - {new Date(analysis.created_at).toLocaleDateString()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </CardContent>
             </Card>
-          )}
-          
-          {!practiceMode ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Select Question Type</CardTitle>
-                <CardDescription>Choose the type of interview questions you want to practice</CardDescription>
+          </div>
+        )}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Sidebar */}
+          <div className="lg:col-span-4">
+            <Card className="shadow-sm border-0">
+              <CardHeader className="space-y-1">
+                <CardTitle className="text-2xl font-bold">Interview Practice</CardTitle>
+                <CardDescription className="text-base">Select a question type to begin</CardDescription>
               </CardHeader>
               <CardContent>
-                <Tabs defaultValue={questionType} onValueChange={setQuestionType} className="w-full">
-                  <TabsList className="grid grid-cols-3 mb-6">
-                    <TabsTrigger value="technical">Technical</TabsTrigger>
-                    <TabsTrigger value="behavioral">Behavioral</TabsTrigger>
-                    <TabsTrigger value="resumeBased">Resume-Based</TabsTrigger>
+                <Tabs value={currentTab} onValueChange={(value) => setCurrentTab(value as typeof currentTab)} className="w-full">
+                  <TabsList className="grid w-full grid-cols-3 mb-6 p-1 bg-gray-100 rounded-lg">
+                    <TabsTrigger value="technical" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Technical</TabsTrigger>
+                    <TabsTrigger value="behavioral" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Behavioral</TabsTrigger>
+                    <TabsTrigger value="resume_based" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Resume</TabsTrigger>
                   </TabsList>
                   
-                  <TabsContent value="technical">
-                    <div className="space-y-4">
-                      <div className="flex items-start gap-3">
-                        <div className="bg-scanmatch-100 p-2 rounded-full">
-                          <Code className="h-5 w-5 text-scanmatch-700" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium">Technical Questions</h3>
-                          <p className="text-gray-600 text-sm">Practice answering questions about programming, algorithms, and technical concepts relevant to your field.</p>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <p className="font-medium mb-2">Example Questions:</p>
-                        <ul className="space-y-2 text-sm text-gray-700">
-                          <li className="flex items-start gap-2">
-                            <ArrowRight className="h-4 w-4 mt-0.5 text-scanmatch-600 flex-shrink-0" />
-                            <span>Explain the concept of Object-Oriented Programming</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <ArrowRight className="h-4 w-4 mt-0.5 text-scanmatch-600 flex-shrink-0" />
-                            <span>What's the difference between HTTP and HTTPS?</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <ArrowRight className="h-4 w-4 mt-0.5 text-scanmatch-600 flex-shrink-0" />
-                            <span>Describe your experience with SQL databases</span>
-                          </li>
-                        </ul>
-                      </div>
+                  <ScrollArea className="h-[calc(100vh-400px)]">
+                    <div className="space-y-2 pr-4">
+                      {filteredQuestions.map((q, index) => (
+                        <Button
+                          key={index}
+                          variant={currentQuestionIndex === index ? "default" : "ghost"}
+                          className={`w-full justify-start text-left py-4 px-4 h-auto ${
+                            currentQuestionIndex === index 
+                              ? 'bg-scanmatch-50 text-scanmatch-900 hover:bg-scanmatch-100' 
+                              : 'hover:bg-gray-50'
+                          }`}
+                          onClick={() => {
+                            setCurrentQuestionIndex(index);
+                            setShowFeedback(false);
+                            setUserAnswer('');
+                          }}
+                        >
+                          <span className="line-clamp-2 text-sm">{q.question}</span>
+                        </Button>
+                      ))}
                     </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="behavioral">
-                    <div className="space-y-4">
-                      <div className="flex items-start gap-3">
-                        <div className="bg-scanmatch-100 p-2 rounded-full">
-                          <User className="h-5 w-5 text-scanmatch-700" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium">Behavioral Questions</h3>
-                          <p className="text-gray-600 text-sm">Practice answering questions about your past experiences, teamwork, conflict resolution, and other soft skills.</p>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <p className="font-medium mb-2">Example Questions:</p>
-                        <ul className="space-y-2 text-sm text-gray-700">
-                          <li className="flex items-start gap-2">
-                            <ArrowRight className="h-4 w-4 mt-0.5 text-scanmatch-600 flex-shrink-0" />
-                            <span>Tell me about a time you faced a challenge at work</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <ArrowRight className="h-4 w-4 mt-0.5 text-scanmatch-600 flex-shrink-0" />
-                            <span>How do you handle tight deadlines?</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <ArrowRight className="h-4 w-4 mt-0.5 text-scanmatch-600 flex-shrink-0" />
-                            <span>Describe a situation where you showed leadership</span>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="resumeBased">
-                    <div className="space-y-4">
-                      <div className="flex items-start gap-3">
-                        <div className="bg-scanmatch-100 p-2 rounded-full">
-                          <FileText className="h-5 w-5 text-scanmatch-700" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium">Resume-Based Questions</h3>
-                          <p className="text-gray-600 text-sm">Practice answering questions specifically about your resume, past experience, and qualifications.</p>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <p className="font-medium mb-2">Example Questions:</p>
-                        <ul className="space-y-2 text-sm text-gray-700">
-                          <li className="flex items-start gap-2">
-                            <ArrowRight className="h-4 w-4 mt-0.5 text-scanmatch-600 flex-shrink-0" />
-                            <span>Tell me more about your role at [Company X]</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <ArrowRight className="h-4 w-4 mt-0.5 text-scanmatch-600 flex-shrink-0" />
-                            <span>I see you have experience with [Skill Y]. Can you elaborate?</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <ArrowRight className="h-4 w-4 mt-0.5 text-scanmatch-600 flex-shrink-0" />
-                            <span>Why did you transition from [Previous Role] to [Current Role]?</span>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </TabsContent>
+                  </ScrollArea>
                 </Tabs>
               </CardContent>
-              <CardFooter>
-                <Button 
-                  onClick={generateQuestion} 
-                  className="bg-scanmatch-600 hover:bg-scanmatch-700 w-full md:w-auto"
-                >
-                  Generate Question <Lightbulb className="ml-2 h-4 w-4" />
-                </Button>
-              </CardFooter>
             </Card>
-          ) : (
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <Badge className="w-fit mb-2">
-                      {questionType === 'technical' ? 'Technical' : 
-                       questionType === 'behavioral' ? 'Behavioral' : 'Resume-Based'}
-                    </Badge>
-                    <CardTitle className="text-xl">Question</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-lg">{currentQuestion}</p>
-                  </CardContent>
-                  <CardFooter className="flex justify-between">
-                    <Button variant="outline" size="sm" onClick={startNewQuestion}>
-                      New Question
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => copyToClipboard(currentQuestion)}
+          </div>
+
+          {/* Main Content */}
+          <div className="lg:col-span-8">
+            <Card className="shadow-sm border-0">
+              <CardHeader className="space-y-4 pb-6">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl font-semibold">
+                    Question {currentQuestionIndex + 1} of {filteredQuestions.length}
+                  </CardTitle>
+                  <span className="text-sm px-3 py-1 bg-scanmatch-50 text-scanmatch-700 rounded-full">
+                    {currentTab.charAt(0).toUpperCase() + currentTab.slice(1)}
+                  </span>
+                </div>
+                {questions[currentQuestionIndex]?.context && (
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <CardDescription className="text-blue-700 text-sm leading-relaxed">
+                      {questions[currentQuestionIndex].context}
+                    </CardDescription>
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-8">
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-900">Question:</h3>
+                  <p className="text-gray-700 text-lg leading-relaxed">
+                    {questions[currentQuestionIndex]?.question}
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-900">Your Answer:</h3>
+                  <Textarea
+                    value={userAnswer}
+                    onChange={(e) => setUserAnswer(e.target.value)}
+                    placeholder="Type your answer here..."
+                    className="min-h-[200px] text-base resize-none focus:ring-2 focus:ring-scanmatch-200"
+                  />
+                </div>
+
+                {showFeedback && currentQuestionAttempts.length > 0 && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">Previous Attempts</h3>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setShowPreviousAttempts(!showPreviousAttempts)}
+                      >
+                        {showPreviousAttempts ? 'Hide' : 'Show'} History
+                      </Button>
+                    </div>
+
+                    {showPreviousAttempts && (
+                      <div className="space-y-4">
+                        {currentQuestionAttempts.map((attempt, index) => (
+                          <Card key={attempt.id} className="bg-gray-50">
+                            <CardHeader>
+                              <CardTitle className="text-sm font-medium">
+                                Attempt {index + 1} - {new Date(attempt.created_at).toLocaleDateString()}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                              <div>
+                                <h4 className="font-medium mb-2">Your Answer:</h4>
+                                <p className="text-gray-700">{attempt.user_answer}</p>
+                              </div>
+                              <div>
+                                <h4 className="font-medium mb-2">Feedback:</h4>
+                                <p className="text-gray-700 whitespace-pre-wrap">{attempt.ai_feedback}</p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex justify-end space-x-3 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setCurrentQuestionIndex((prev) => (prev + 1) % filteredQuestions.length);
+                      setShowFeedback(false);
+                      setUserAnswer('');
+                    }}
+                  >
+                    Skip
+                  </Button>
+                  {showFeedback ? (
+                    <Button
+                      onClick={handleTryAgain}
+                      className="bg-scanmatch-600 hover:bg-scanmatch-700"
                     >
-                      <Copy className="h-4 w-4 mr-1" /> Copy
+                      Try Again
                     </Button>
-                  </CardFooter>
-                </Card>
-                
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-xl">Your Answer</CardTitle>
-                    <CardDescription>Type your response as if you were in an interview</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Textarea
-                      placeholder="Enter your answer here..."
-                      value={answer}
-                      onChange={(e) => setAnswer(e.target.value)}
-                      className="min-h-[200px]"
-                    />
-                  </CardContent>
-                  <CardFooter>
-                    <Button 
-                      onClick={handleSubmitAnswer} 
-                      disabled={isLoading || !answer.trim()} 
-                      className="w-full bg-scanmatch-600 hover:bg-scanmatch-700"
+                  ) : (
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={isLoading || !userAnswer.trim()}
+                      className="bg-scanmatch-600 hover:bg-scanmatch-700"
                     >
                       {isLoading ? (
                         <>
@@ -375,121 +534,16 @@ const Interview = () => {
                           Getting Feedback...
                         </>
                       ) : (
-                        <>
-                          Submit Answer <Send className="ml-2 h-4 w-4" />
-                        </>
+                        'Submit Answer'
                       )}
                     </Button>
-                  </CardFooter>
-                </Card>
-              </div>
-              
-              <div className="space-y-6">
-                <Card className={feedback ? "bg-scanmatch-50 border-scanmatch-100" : ""}>
-                  <CardHeader>
-                    <CardTitle className="text-xl">AI Feedback</CardTitle>
-                    <CardDescription>
-                      {feedback ? "Here's what our AI coach thinks of your answer" : "Submit your answer to get feedback"}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {feedback ? (
-                      <div className="whitespace-pre-line text-gray-800">
-                        {feedback}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12 text-gray-500">
-                        <Brain className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                        <p>AI feedback will appear here after you submit your answer</p>
-                      </div>
-                    )}
-                  </CardContent>
-                  {feedback && (
-                    <CardFooter className="flex justify-between">
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">
-                          <ThumbsUp className="h-4 w-4 mr-1" /> Helpful
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <ThumbsDown className="h-4 w-4 mr-1" /> Not Helpful
-                        </Button>
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => copyToClipboard(feedback)}
-                      >
-                        <Copy className="h-4 w-4 mr-1" /> Copy
-                      </Button>
-                    </CardFooter>
                   )}
-                </Card>
-                
-                {practiceHistory.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-xl">Practice History</CardTitle>
-                      <CardDescription>Your recent practice questions</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-4">
-                        {practiceHistory.map((item, index) => (
-                          <li key={index} className="border-b border-gray-100 last:border-0 pb-3 last:pb-0">
-                            <div className="flex items-start gap-2 mb-1">
-                              <Badge variant="outline" className="shrink-0">
-                                {item.type === 'technical' ? 'Technical' : 
-                                 item.type === 'behavioral' ? 'Behavioral' : 'Resume-Based'}
-                              </Badge>
-                              <p className="font-medium">{item.question}</p>
-                            </div>
-                            <p className="text-sm text-gray-600 line-clamp-2">{item.answer}</p>
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
-          )}
-          
-          <div className="mt-12 text-center">
-            <h2 className="text-2xl font-bold mb-3">Success Tips</h2>
-            <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-              <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                <div className="bg-scanmatch-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Stars className="h-6 w-6 text-scanmatch-700" />
                 </div>
-                <h3 className="font-semibold mb-2">Use the STAR Method</h3>
-                <p className="text-sm text-gray-600">
-                  Structure your answers with Situation, Task, Action, and Result for behavioral questions.
-                </p>
-              </div>
-              
-              <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                <div className="bg-scanmatch-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Briefcase className="h-6 w-6 text-scanmatch-700" />
-                </div>
-                <h3 className="font-semibold mb-2">Research the Company</h3>
-                <p className="text-sm text-gray-600">
-                  Show your interest by connecting your answers to the company's values and needs.
-                </p>
-              </div>
-              
-              <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                <div className="bg-scanmatch-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle2 className="h-6 w-6 text-scanmatch-700" />
-                </div>
-                <h3 className="font-semibold mb-2">Practice Consistently</h3>
-                <p className="text-sm text-gray-600">
-                  Regular practice builds confidence. Aim to practice at least 3 questions per day.
-                </p>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </main>
-      
       <Footer />
     </div>
   );

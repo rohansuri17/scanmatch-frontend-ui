@@ -73,6 +73,11 @@ export type ResumeAnalysis = {
   created_at?: string;
   job_title?: string;
   improvement_suggestions?: string;
+  interview_questions?: {
+    technical: Array<{ question: string; context: string }>;
+    behavioral: Array<{ question: string; context: string }>;
+    resume_based: Array<{ question: string; context: string }>;
+  };
 };
 
 export const saveResumeAnalysis = async (analysis: Omit<ResumeAnalysis, 'id' | 'created_at'>) => {
@@ -87,6 +92,7 @@ export const saveResumeAnalysis = async (analysis: Omit<ResumeAnalysis, 'id' | '
       structure_improvements: analysis.structure_improvements,
       job_title: analysis.job_title,
       improvement_suggestions: analysis.improvement_suggestions,
+      interview_questions: analysis.interview_questions,
       created_at: new Date().toISOString()
     })
     .select()
@@ -116,18 +122,38 @@ export const getUserResumeAnalyses = async (userId: string) => {
 };
 
 export const getResumeAnalysis = async (id: string) => {
-  const { data, error } = await supabase
+  // First get the analysis data
+  const { data: analysis, error: analysisError } = await supabase
     .from('resume_analyses')
     .select('*')
     .eq('id', id)
     .single();
   
-  if (error) {
-    console.error("Error fetching resume analysis:", error);
-    throw error;
+  if (analysisError) {
+    console.error("Error fetching resume analysis:", analysisError);
+    throw analysisError;
   }
-  
-  return data;
+
+  // Then get the corresponding resume text
+  const { data: scanData, error: scanError } = await supabase
+    .from('resume_scan_data')
+    .select('resume_text, job_description')
+    .eq('user_id', analysis.user_id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (scanError) {
+    console.error("Error fetching resume scan data:", scanError);
+    throw scanError;
+  }
+
+  // Combine the data
+  return {
+    ...analysis,
+    resume_text: scanData.resume_text,
+    job_description: scanData.job_description
+  };
 };
 
 // Subscription-related functions
@@ -350,4 +376,61 @@ export type Database = {
       };
     };
   };
+};
+
+export const generateLearningPath = async (analysisId: string) => {
+  try {
+    // Get the analysis data
+    console.log('Fetching analysis data for ID:', analysisId);
+    const analysis = await getResumeAnalysis(analysisId);
+    
+    if (!analysis) {
+      throw new Error('Analysis not found');
+    }
+
+    // Parse the missing skills and improvements
+    let missingSkills, improvements;
+    try {
+      missingSkills = typeof analysis.keywords_missing === 'string' 
+        ? JSON.parse(analysis.keywords_missing)
+        : analysis.keywords_missing;
+      
+      improvements = typeof analysis.structure_improvements === 'string'
+        ? JSON.parse(analysis.structure_improvements)
+        : analysis.structure_improvements;
+
+      console.log('Parsed analysis data:', { missingSkills, improvements });
+    } catch (parseError) {
+      console.error('Error parsing analysis data:', parseError);
+      throw new Error('Invalid analysis data format');
+    }
+
+    // Call the Edge Function
+    console.log('Calling Edge Function with:', { missingSkills, improvements, userId: analysis.user_id });
+    const { data, error } = await supabase.functions.invoke('generate-learning-path', {
+      body: {
+        missingSkills,
+        improvements,
+        userId: analysis.user_id
+      }
+    });
+
+    if (error) {
+      console.error('Edge Function error:', error);
+      if (error.message.includes('OpenAI API key')) {
+        throw new Error('Service configuration error. Please contact support.');
+      }
+      throw error;
+    }
+
+    if (!data || !Array.isArray(data)) {
+      console.error('Invalid response from Edge Function:', data);
+      throw new Error('Invalid response format from learning path generator');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error generating learning path:', error);
+    throw error;
+  }
 };
