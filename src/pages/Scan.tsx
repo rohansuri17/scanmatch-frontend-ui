@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -197,6 +198,22 @@ const Scan = () => {
       <NavBar />
       <main className="flex-grow py-12">
         <div className="container-custom">
+          {/* New Instruction Section */}
+          <section className="mb-10 max-w-3xl mx-auto text-center px-4">
+            <h2 className="text-3xl font-semibold mb-4 text-scanmatch-700">Let’s get you hired—here’s how it works:</h2>
+            <ol className="list-decimal list-inside text-left space-y-3 max-w-xl mx-auto text-gray-700 text-lg">
+              <li>
+                <span className="font-semibold">Start with Resume</span> — Scan your resume and get tailored interview questions.
+              </li>
+              <li>
+                <span className="font-semibold">Practice in Interview</span> — Answer real interview questions and receive instant, in-depth AI feedback.
+              </li>
+              <li>
+                <span className="font-semibold">Learn & Grow</span> — Review targeted course suggestions in Learn to boost your skill gaps and stand out.
+              </li>
+            </ol>
+          </section>
+
           <div className="max-w-3xl mx-auto">
             <div className="text-center mb-8">
               <h1 className="text-3xl md:text-4xl font-bold mb-4">Match Your Resume</h1>
@@ -321,3 +338,4 @@ const Scan = () => {
 };
 
 export default Scan;
+
