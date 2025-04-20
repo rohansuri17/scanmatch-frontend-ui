@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +13,8 @@ import { saveResumeAnalysis, saveResumeScanData } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from '@/hooks/useSubscription';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+import AICoachAvatar from "@/components/AICoachAvatar";
+
 GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 const Scan = () => {
@@ -32,7 +33,6 @@ const Scan = () => {
   };
 
   useEffect(() => {
-    // Clear any existing analysis data when coming back to scan page
     clearAnalysisData();
   }, []);
 
@@ -61,7 +61,6 @@ const Scan = () => {
         return;
       }
       
-      // For PDF files
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
@@ -96,7 +95,6 @@ const Scan = () => {
       return;
     }
     
-    // Check if user can scan based on their subscription
     if (user) {
       try {
         const canScan = await checkCanScan();
@@ -119,7 +117,6 @@ const Scan = () => {
     try {
       const resumeText = await readFileAsText(resumeFile);
       
-      // Store resume text and job description in session storage
       sessionStorage.setItem('resumeText', resumeText);
       sessionStorage.setItem('jobDescription', jobDescription);
       
@@ -134,11 +131,8 @@ const Scan = () => {
       console.log('Resume scan response:', data);
 
       if (user) {
-        // For logged-in users, save to database
-        // Increment scan count for the user
         await incrementScan();
         
-        // Save scan data
         try {
           await saveResumeScanData({
             user_id: user.id,
@@ -165,7 +159,6 @@ const Scan = () => {
         const savedAnalysis = await saveResumeAnalysis(analysisData);
         navigate(`/results?id=${savedAnalysis.id}`);
       } else {
-        // For non-logged in users, store the complete analysis in localStorage
         const analysisData = {
           score: data.score,
           keywords_found: JSON.stringify(data.keywords.found.map(k => k.word)),
@@ -198,138 +191,125 @@ const Scan = () => {
       <NavBar />
       <main className="flex-grow py-12">
         <div className="container-custom">
-          {/* New Instruction Section */}
-          <section className="mb-10 max-w-3xl mx-auto text-center px-4">
-            <h2 className="text-3xl font-semibold mb-4 text-scanmatch-700">Let’s get you hired—here’s how it works:</h2>
-            <ol className="list-decimal list-inside text-left space-y-3 max-w-xl mx-auto text-gray-700 text-lg">
-              <li>
-                <span className="font-semibold">Start with Resume</span> — Scan your resume and get tailored interview questions.
-              </li>
-              <li>
-                <span className="font-semibold">Practice in Interview</span> — Answer real interview questions and receive instant, in-depth AI feedback.
-              </li>
-              <li>
-                <span className="font-semibold">Learn & Grow</span> — Review targeted course suggestions in Learn to boost your skill gaps and stand out.
-              </li>
-            </ol>
-          </section>
-
-          <div className="max-w-3xl mx-auto">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl md:text-4xl font-bold mb-4">Match Your Resume</h1>
-              <p className="text-gray-600">
-                Upload your resume and paste the job description to get a detailed match analysis
-              </p>
-              
-              <div className="flex justify-center space-x-6 mt-6">
-                <div className="flex flex-col items-center">
-                  <div className="bg-scanmatch-100 w-12 h-12 rounded-full flex items-center justify-center text-scanmatch-800 mb-2">
-                    <GraduationCap size={24} />
-                  </div>
-                  <p className="text-sm font-medium">New Graduate?</p>
-                  <p className="text-xs text-gray-500">We'll help you stand out</p>
-                </div>
-                
-                <div className="flex flex-col items-center">
-                  <div className="bg-scanmatch-100 w-12 h-12 rounded-full flex items-center justify-center text-scanmatch-800 mb-2">
-                    <BookOpen size={24} />
-                  </div>
-                  <p className="text-sm font-medium">Switching Careers?</p>
-                  <p className="text-xs text-gray-500">Highlight your transferable skills</p>
-                </div>
+          <div className="mb-8 animate-fade-in">
+            <div className="flex flex-wrap justify-between items-center p-5 bg-gradient-to-r from-scanmatch-100 to-white rounded-lg border">
+              <div>
+                <h2 className="text-lg md:text-xl font-semibold">Let’s get you hired—here’s how it works:</h2>
+                <ol className="pl-5 mt-1 text-scanmatch-800 list-decimal text-sm md:text-base space-y-1">
+                  <li>
+                    <b>1. Start with Resume</b> — Scan your resume and get tailored interview questions.
+                  </li>
+                  <li>
+                    <b>2. Practice in Interview</b> — Answer real interview questions and receive instant, in-depth AI feedback.
+                  </li>
+                  <li>
+                    <b>3. Learn & Grow</b> — Review targeted course suggestions in <b>Learn</b> to boost your skill gaps and stand out.
+                  </li>
+                </ol>
               </div>
+              <Button 
+                variant="outline"
+                className="ml-auto gap-2 pulse hover-scale"
+                asChild
+              >
+                <a href="/learn">
+                  🚀 Jump to Learn
+                </a>
+              </Button>
             </div>
-            
-            {error && (
-              <Alert variant="destructive" className="mb-6">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            
-            <form onSubmit={handleSubmit}>
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle>Upload Resume</CardTitle>
-                  <CardDescription>Upload your resume in PDF or text format</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div
-                    className={`p-6 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer
-                      ${resumeFile ? 'border-scanmatch-500 bg-scanmatch-50' : 'border-gray-200 hover:border-scanmatch-500 hover:bg-gray-50'}`}
-                    onClick={() => document.getElementById('resume-upload')?.click()}
-                  >
-                    {resumeFile ? (
-                      <>
-                        <File className="h-8 w-8 text-scanmatch-500 mb-3" />
-                        <p className="font-medium text-gray-800">{resumeFile.name}</p>
-                        <p className="text-sm text-gray-500 mt-1">Click to change file</p>
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-10 w-10 text-gray-400 mb-3" />
-                        <p className="text-center text-gray-500">
-                          <span className="font-medium text-scanmatch-600">Click to upload</span> or drag and drop
-                        </p>
-                        <p className="text-sm text-gray-400 mt-1">PDF or text files only</p>
-                      </>
-                    )}
-                    <input
-                      id="resume-upload"
-                      type="file"
-                      accept=".pdf,.txt"
-                      className="hidden"
-                      onChange={handleFileChange}
-                    />
-                  </div>
-                  
-                  <div className="mt-4 text-center">
-                    <Button variant="link" size="sm" className="text-scanmatch-600" asChild>
-                      <a href="#" target="_blank" rel="noopener noreferrer">
-                        Don't have a resume yet? Download a template
-                      </a>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle>Job Description</CardTitle>
-                  <CardDescription>
-                    Paste the job description you want to match against
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    placeholder="Paste job description here..."
-                    className="min-h-[200px]"
-                    value={jobDescription}
-                    onChange={(e) => setJobDescription(e.target.value)}
-                  />
-                </CardContent>
-              </Card>
-              
-              <div className="flex flex-col sm:flex-row gap-4 justify-end">
-                <Button variant="outline" type="button" asChild>
-                  <Link to="/">Cancel</Link>
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-scanmatch-600 hover:bg-scanmatch-700"
-                  disabled={isLoading}
+          </div>
+          <div className="mb-8">
+            <AICoachAvatar message="Upload your resume and paste a job description below. Need help? I’ll cheer you on each step!" />
+          </div>
+          {error && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          
+          <form onSubmit={handleSubmit}>
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Upload Resume</CardTitle>
+                <CardDescription>Upload your resume in PDF or text format</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div
+                  className={`p-6 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer
+                    ${resumeFile ? 'border-scanmatch-500 bg-scanmatch-50' : 'border-gray-200 hover:border-scanmatch-500 hover:bg-gray-50'}`}
+                  onClick={() => document.getElementById('resume-upload')?.click()}
                 >
-                  {isLoading ? (
+                  {resumeFile ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Analyzing...
+                      <File className="h-8 w-8 text-scanmatch-500 mb-3" />
+                      <p className="font-medium text-gray-800">{resumeFile.name}</p>
+                      <p className="text-sm text-gray-500 mt-1">Click to change file</p>
                     </>
                   ) : (
-                    'Analyze & Score Resume'
+                    <>
+                      <Upload className="h-10 w-10 text-gray-400 mb-3" />
+                      <p className="text-center text-gray-500">
+                        <span className="font-medium text-scanmatch-600">Click to upload</span> or drag and drop
+                      </p>
+                      <p className="text-sm text-gray-400 mt-1">PDF or text files only</p>
+                    </>
                   )}
-                </Button>
-              </div>
-            </form>
-          </div>
+                  <input
+                    id="resume-upload"
+                    type="file"
+                    accept=".pdf,.txt"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </div>
+                
+                <div className="mt-4 text-center">
+                  <Button variant="link" size="sm" className="text-scanmatch-600" asChild>
+                    <a href="#" target="_blank" rel="noopener noreferrer">
+                      Don't have a resume yet? Download a template
+                    </a>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Job Description</CardTitle>
+                <CardDescription>
+                  Paste the job description you want to match against
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  placeholder="Paste job description here..."
+                  className="min-h-[200px]"
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                />
+              </CardContent>
+            </Card>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-end">
+              <Button variant="outline" type="button" asChild>
+                <Link to="/">Cancel</Link>
+              </Button>
+              <Button
+                type="submit"
+                className="bg-scanmatch-600 hover:bg-scanmatch-700"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  'Analyze & Score Resume'
+                )}
+              </Button>
+            </div>
+          </form>
         </div>
       </main>
       <Footer />
@@ -338,4 +318,3 @@ const Scan = () => {
 };
 
 export default Scan;
-
