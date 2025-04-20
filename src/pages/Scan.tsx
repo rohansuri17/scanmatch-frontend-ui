@@ -14,6 +14,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from '@/hooks/useSubscription';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 import AICoachAvatar from "@/components/AICoachAvatar";
+import ProgressTracker from "@/components/ProgressTracker";
+import ResumeAnalysisHistory from "@/components/ResumeAnalysisHistory";
 
 GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
@@ -186,38 +188,34 @@ const Scan = () => {
     }
   };
 
+  // Used to toggle display of resume analysis history dropdown
+  const [showResumeHistory, setShowResumeHistory] = useState(false);
+
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
       <main className="flex-grow py-12">
         <div className="container-custom">
-          <div className="mb-8 animate-fade-in">
-            <div className="flex flex-wrap justify-between items-center p-5 bg-gradient-to-r from-scanmatch-100 to-white rounded-lg border">
-              <div>
-                <h2 className="text-lg md:text-xl font-semibold">Let’s get you hired—here’s how it works:</h2>
-                <ol className="pl-5 mt-1 text-scanmatch-800 list-decimal text-sm md:text-base space-y-1">
-                  <li>
-                    <b>1. Start with Resume</b> — Scan your resume and get tailored interview questions.
-                  </li>
-                  <li>
-                    <b>2. Practice in Interview</b> — Answer real interview questions and receive instant, in-depth AI feedback.
-                  </li>
-                  <li>
-                    <b>3. Learn & Grow</b> — Review targeted course suggestions in <b>Learn</b> to boost your skill gaps and stand out.
-                  </li>
-                </ol>
+
+          {/* Progress Tracker */}
+          <ProgressTracker currentStep="resume" className="mb-4" />
+
+          {/* Resume Analysis History Dropdown */}
+          <div className="mb-6">
+            <button
+              className="text-scanmatch-600 underline hover:text-scanmatch-700 transition font-medium"
+              onClick={() => setShowResumeHistory(!showResumeHistory)}
+            >
+              {showResumeHistory ? "Hide" : "Show"} Resume Analysis History
+            </button>
+            {showResumeHistory && (
+              <div className="mt-4 animate-fade-in">
+                <ResumeAnalysisHistory />
               </div>
-              <Button 
-                variant="outline"
-                className="ml-auto gap-2 pulse hover-scale"
-                asChild
-              >
-                <a href="/learn">
-                  🚀 Jump to Learn
-                </a>
-              </Button>
-            </div>
+            )}
           </div>
+
+          {/* AI Avatar */}
           <div className="mb-8">
             <AICoachAvatar message="Upload your resume and paste a job description below. Need help? I’ll cheer you on each step!" />
           </div>

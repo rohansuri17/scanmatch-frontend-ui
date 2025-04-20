@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import ProgressTracker from "@/components/ProgressTracker";
+import AICoachAvatar from "@/components/AICoachAvatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -361,39 +363,14 @@ const Interview = () => {
 
   const filteredQuestions = questions.filter(q => q.type === currentTab);
 
-  const RenderStepBanner = () => (
-    <div className="mb-6">
-      <div className="flex flex-wrap justify-between items-center p-5 bg-gradient-to-r from-scanmatch-100 to-white rounded-lg border">
-        <div>
-          <h2 className="text-lg font-semibold">Let’s get you hired—here’s how it works:</h2>
-          <ol className="pl-5 mt-1 text-scanmatch-800 list-decimal text-sm space-y-1">
-            <li>
-              <b>1. Start with Resume</b> — Scan your resume and get tailored interview questions.
-            </li>
-            <li>
-              <b>2. Practice in Interview</b> — Answer real interview questions and receive instant, in-depth AI feedback.
-            </li>
-            <li>
-              <b>3. Learn & Grow</b> — Review targeted course suggestions in <b>Learn</b> to boost your skill gaps and stand out.
-            </li>
-          </ol>
-        </div>
-        <Button 
-          variant="outline" 
-          className="ml-auto gap-2 pulse hover-scale"
-          onClick={() => navigate("/learn")}
-        >
-          🚀 Jump to Learn
-        </Button>
-      </div>
-    </div>
-  );
-
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <NavBar />
       <main className="flex-grow container-custom py-8">
-        <RenderStepBanner />
+        <ProgressTracker currentStep="interview" className="mb-6" />
+        <div className="mb-8">
+          <AICoachAvatar message="Ready for your practice session? I'll give feedback and motivation as you answer!" />
+        </div>
         {user && (
           <div className="flex items-center gap-4 mb-8 animate-fade-in">
             <Avatar className="h-12 w-12">
@@ -426,14 +403,15 @@ const Interview = () => {
                         <Button
                           key={index}
                           variant={currentQuestionIndex === index ? "default" : "ghost"}
-                          className={`w-full justify-start text-left py-4 px-4 h-auto ${currentQuestionIndex === index ? 'bg-scanmatch-50 text-scanmatch-900 pulse' : 'hover:bg-gray-50'}`}
+                          className={`w-full justify-start text-left py-4 px-4 h-auto whitespace-pre-line break-words ${currentQuestionIndex === index ? 'bg-scanmatch-50 text-scanmatch-900 pulse' : 'hover:bg-gray-50'}`}
+                          style={{ whiteSpace: 'pre-line', wordBreak: 'break-word', minHeight: 64, maxHeight: 90 }}
                           onClick={() => {
                             setCurrentQuestionIndex(index);
                             setShowFeedback(false);
                             setUserAnswer('');
                           }}
                         >
-                          <span className="line-clamp-2 text-sm font-medium">{q.question}</span>
+                          <span className="line-clamp-3 text-sm font-medium">{q.question}</span>
                         </Button>
                       ))}
                     </div>
