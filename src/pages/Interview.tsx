@@ -13,6 +13,8 @@ import { Loader2, MessageSquare, CheckCircle2, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import InterviewQAHistory from "@/components/InterviewQAHistory";
 
 interface QuestionAttempt {
   id: string;
@@ -160,7 +162,6 @@ const Interview = () => {
 
       if (error) throw error;
 
-      // Group attempts by question
       const attempts = (data || []).reduce((acc: Record<string, QuestionAttempt[]>, qa) => {
         if (!acc[qa.question]) {
           acc[qa.question] = [];
@@ -291,7 +292,6 @@ const Interview = () => {
         throw new Error(functionError?.message || 'Failed to get feedback');
       }
 
-      // Save to database if user is logged in
       if (user && selectedAnalysisId) {
         const { error: saveError } = await supabase
           .from('interview_qa')
@@ -306,7 +306,6 @@ const Interview = () => {
 
         if (saveError) throw saveError;
 
-        // Update local state
         const currentQuestion = questions[currentQuestionIndex].question;
         setQuestionAttempts(prev => ({
           ...prev,
@@ -351,74 +350,90 @@ const Interview = () => {
     setShowFeedback(false);
   };
 
+  const handleRetryAttempt = (attempt) => {
+    setUserAnswer(attempt.user_answer);
+    setShowFeedback(false);
+  };
+
   const currentQuestionAttempts = questions[currentQuestionIndex]
     ? questionAttempts[questions[currentQuestionIndex].question] || []
     : [];
 
   const filteredQuestions = questions.filter(q => q.type === currentTab);
 
+  const RenderStepBanner = () => (
+    <div className="mb-6">
+      <div className="flex flex-wrap justify-between items-center p-5 bg-gradient-to-r from-scanmatch-100 to-white rounded-lg border">
+        <div>
+          <h2 className="text-lg font-semibold">Let’s get you hired—here’s how it works:</h2>
+          <ol className="pl-5 mt-1 text-scanmatch-800 list-decimal text-sm space-y-1">
+            <li>
+              <b>1. Start with Resume</b> — Scan your resume and get tailored interview questions.
+            </li>
+            <li>
+              <b>2. Practice in Interview</b> — Answer real interview questions and receive instant, in-depth AI feedback.
+            </li>
+            <li>
+              <b>3. Learn & Grow</b> — Review targeted course suggestions in <b>Learn</b> to boost your skill gaps and stand out.
+            </li>
+          </ol>
+        </div>
+        <Button 
+          variant="outline" 
+          className="ml-auto gap-2 pulse hover-scale"
+          onClick={() => navigate("/learn")}
+        >
+          🚀 Jump to Learn
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <NavBar />
       <main className="flex-grow container-custom py-8">
+        <RenderStepBanner />
         {user && (
-          <div className="mb-6">
-            <Card className="shadow-sm border-0">
-              <CardContent className="pt-6">
-                <Select
-                  value={selectedAnalysisId}
-                  onValueChange={handleAnalysisChange}
-                  disabled={isLoadingAnalyses}
-                >
-                  <SelectTrigger className="w-[300px]">
-                    <SelectValue placeholder="Select a resume analysis" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {analyses.map((analysis) => (
-                      <SelectItem key={analysis.id} value={analysis.id}>
-                        {analysis.job_title} - {new Date(analysis.created_at).toLocaleDateString()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </CardContent>
-            </Card>
+          <div className="flex items-center gap-4 mb-8 animate-fade-in">
+            <Avatar className="h-12 w-12">
+              <AvatarFallback>{user.email?.[0]?.toUpperCase() ?? "U"}</AvatarFallback>
+              <AvatarImage />
+            </Avatar>
+            <div>
+              <p className="font-bold text-base">Hi, {user.email}! Ready for your interview practice?</p>
+              <p className="text-scanmatch-700 text-xs">Progress anytime. You can always jump between Resume, Interview, and Learn step above.</p>
+            </div>
           </div>
         )}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Sidebar */}
           <div className="lg:col-span-4">
             <Card className="shadow-sm border-0">
               <CardHeader className="space-y-1">
                 <CardTitle className="text-2xl font-bold">Interview Practice</CardTitle>
-                <CardDescription className="text-base">Select a question type to begin</CardDescription>
+                <CardDescription className="text-base">Pick a question, answer in any order!</CardDescription>
               </CardHeader>
               <CardContent>
                 <Tabs value={currentTab} onValueChange={(value) => setCurrentTab(value as typeof currentTab)} className="w-full">
                   <TabsList className="grid w-full grid-cols-3 mb-6 p-1 bg-gray-100 rounded-lg">
-                    <TabsTrigger value="technical" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Technical</TabsTrigger>
-                    <TabsTrigger value="behavioral" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Behavioral</TabsTrigger>
-                    <TabsTrigger value="resume_based" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Resume</TabsTrigger>
+                    <TabsTrigger value="technical" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition hover-scale">Technical</TabsTrigger>
+                    <TabsTrigger value="behavioral" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition hover-scale">Behavioral</TabsTrigger>
+                    <TabsTrigger value="resume_based" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition hover-scale">Resume</TabsTrigger>
                   </TabsList>
-                  
                   <ScrollArea className="h-[calc(100vh-400px)]">
                     <div className="space-y-2 pr-4">
                       {filteredQuestions.map((q, index) => (
                         <Button
                           key={index}
                           variant={currentQuestionIndex === index ? "default" : "ghost"}
-                          className={`w-full justify-start text-left py-4 px-4 h-auto ${
-                            currentQuestionIndex === index 
-                              ? 'bg-scanmatch-50 text-scanmatch-900 hover:bg-scanmatch-100' 
-                              : 'hover:bg-gray-50'
-                          }`}
+                          className={`w-full justify-start text-left py-4 px-4 h-auto ${currentQuestionIndex === index ? 'bg-scanmatch-50 text-scanmatch-900 pulse' : 'hover:bg-gray-50'}`}
                           onClick={() => {
                             setCurrentQuestionIndex(index);
                             setShowFeedback(false);
                             setUserAnswer('');
                           }}
                         >
-                          <span className="line-clamp-2 text-sm">{q.question}</span>
+                          <span className="line-clamp-2 text-sm font-medium">{q.question}</span>
                         </Button>
                       ))}
                     </div>
@@ -427,8 +442,6 @@ const Interview = () => {
               </CardContent>
             </Card>
           </div>
-
-          {/* Main Content */}
           <div className="lg:col-span-8">
             <Card className="shadow-sm border-0">
               <CardHeader className="space-y-4 pb-6">
@@ -451,11 +464,10 @@ const Interview = () => {
               <CardContent className="space-y-8">
                 <div className="space-y-3">
                   <h3 className="text-lg font-semibold text-gray-900">Question:</h3>
-                  <p className="text-gray-700 text-lg leading-relaxed">
+                  <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-line animate-fade-in">
                     {questions[currentQuestionIndex]?.question}
                   </p>
                 </div>
-
                 <div className="space-y-3">
                   <h3 className="text-lg font-semibold text-gray-900">Your Answer:</h3>
                   <Textarea
@@ -465,45 +477,6 @@ const Interview = () => {
                     className="min-h-[200px] text-base resize-none focus:ring-2 focus:ring-scanmatch-200"
                   />
                 </div>
-
-                {showFeedback && currentQuestionAttempts.length > 0 && (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-gray-900">Previous Attempts</h3>
-                      <Button
-                        variant="ghost"
-                        onClick={() => setShowPreviousAttempts(!showPreviousAttempts)}
-                      >
-                        {showPreviousAttempts ? 'Hide' : 'Show'} History
-                      </Button>
-                    </div>
-
-                    {showPreviousAttempts && (
-                      <div className="space-y-4">
-                        {currentQuestionAttempts.map((attempt, index) => (
-                          <Card key={attempt.id} className="bg-gray-50">
-                            <CardHeader>
-                              <CardTitle className="text-sm font-medium">
-                                Attempt {index + 1} - {new Date(attempt.created_at).toLocaleDateString()}
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                              <div>
-                                <h4 className="font-medium mb-2">Your Answer:</h4>
-                                <p className="text-gray-700">{attempt.user_answer}</p>
-                              </div>
-                              <div>
-                                <h4 className="font-medium mb-2">Feedback:</h4>
-                                <p className="text-gray-700 whitespace-pre-wrap">{attempt.ai_feedback}</p>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 <div className="flex justify-end space-x-3 pt-2">
                   <Button
                     variant="outline"
@@ -539,6 +512,18 @@ const Interview = () => {
                     </Button>
                   )}
                 </div>
+                {showFeedback && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mt-4 mb-2">Previous Attempts</h3>
+                    <InterviewQAHistory
+                      attempts={currentQuestionAttempts.map(attempt => ({
+                        ...attempt,
+                        onRetry: () => handleRetryAttempt(attempt),
+                      }))}
+                      onRetry={handleRetryAttempt}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
