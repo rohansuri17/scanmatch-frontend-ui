@@ -25,7 +25,7 @@ const ResumeAnalysisHistory = () => {
     navigate(`/results?id=${analysisId}`);
   };
   
-  // Helper function to ensure keywords_found is an array of the correct format.
+  // Helper function to ensure keywords_found is an array of the correct format..
   const parseKeywords = (keywords: unknown): Array<string | { word: string; category?: string }> => {
     if (Array.isArray(keywords)) {
       return keywords;
