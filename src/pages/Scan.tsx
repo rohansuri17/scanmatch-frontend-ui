@@ -148,6 +148,7 @@ const Scan = () => {
         
         const analysisData = {
           user_id: user.id,
+          resume_text: resumeText,
           score: data.score,
           keywords_found: JSON.stringify(data.keywords.found.map(k => k.word)),
           keywords_missing: JSON.stringify(data.keywords.missing.map(k => k.word)),
@@ -217,7 +218,7 @@ const Scan = () => {
 
           {/* AI Avatar */}
           <div className="mb-8">
-            <AICoachAvatar message="Upload your resume and paste a job description below. Need help? I’ll cheer you on each step!" />
+            <AICoachAvatar message="Upload your resume and paste a job description below. Need help? I'll cheer you on each step!" />
           </div>
           {error && (
             <Alert variant="destructive" className="mb-6">

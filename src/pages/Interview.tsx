@@ -77,6 +77,7 @@ const Interview = () => {
   const [isLoadingAnalyses, setIsLoadingAnalyses] = useState(false);
   const [questionAttempts, setQuestionAttempts] = useState<Record<string, QuestionAttempt[]>>({});
   const [showPreviousAttempts, setShowPreviousAttempts] = useState(false);
+  const [currentAttemptIndex, setCurrentAttemptIndex] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -85,6 +86,12 @@ const Interview = () => {
       loadQuestionsFromLocalStorage();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (selectedAnalysisId) {
+      loadQuestionAttempts(selectedAnalysisId);
+    }
+  }, [selectedAnalysisId]);
 
   const loadResumeAnalyses = async () => {
     setIsLoadingAnalyses(true);
@@ -160,7 +167,7 @@ const Interview = () => {
         .from('interview_qa')
         .select('*')
         .eq('analysis_id', analysisId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -178,8 +185,21 @@ const Interview = () => {
       }, {});
 
       setQuestionAttempts(attempts);
+
+      const currentQuestion = questions[currentQuestionIndex]?.question;
+      if (currentQuestion && attempts[currentQuestion]?.length > 0) {
+        setCurrentAttemptIndex(0);
+        setShowFeedback(true);
+      } else {
+        setShowFeedback(false);
+      }
     } catch (error) {
       console.error('Error loading question attempts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load previous attempts",
+        variant: "destructive",
+      });
     }
   };
 
@@ -476,7 +496,7 @@ const Interview = () => {
                   ) : (
                     <Button
                       onClick={handleSubmit}
-                      disabled={isLoading || !userAnswer.trim()}
+                      disabled={isLoading}
                       className="bg-scanmatch-600 hover:bg-scanmatch-700"
                     >
                       {isLoading ? (
@@ -490,9 +510,33 @@ const Interview = () => {
                     </Button>
                   )}
                 </div>
+                {currentQuestionAttempts.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Previous Attempts</h3>
+                    <Select
+                      value={currentAttemptIndex.toString()}
+                      onValueChange={(value) => {
+                        setCurrentAttemptIndex(parseInt(value));
+                        setUserAnswer(currentQuestionAttempts[parseInt(value)].user_answer);
+                        setShowFeedback(true);
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select previous attempt" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currentQuestionAttempts.map((attempt, index) => (
+                          <SelectItem key={attempt.id} value={index.toString()}>
+                            Attempt {index + 1} - {new Date(attempt.created_at).toLocaleDateString()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 {showFeedback && (
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mt-4 mb-2">Previous Attempts</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mt-4 mb-2">AI Feedback</h3>
                     <InterviewQAHistory
                       attempts={currentQuestionAttempts.map(attempt => ({
                         ...attempt,

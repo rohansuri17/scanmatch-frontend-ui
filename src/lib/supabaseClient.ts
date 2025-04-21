@@ -65,6 +65,7 @@ export type KeywordItem = string | { word: string; category?: string };
 export type ResumeAnalysis = {
   id?: string;
   user_id: string;
+  resume_text: string;
   score: number;
   keywords_found: KeywordItem[] | string; // Can be array or stringified JSON
   keywords_missing: KeywordItem[] | string; // Can be array or stringified JSON
@@ -85,6 +86,7 @@ export const saveResumeAnalysis = async (analysis: Omit<ResumeAnalysis, 'id' | '
     .from('resume_analyses')
     .insert({
       user_id: analysis.user_id,
+      resume_text: analysis.resume_text,
       score: analysis.score,
       keywords_found: analysis.keywords_found,
       keywords_missing: analysis.keywords_missing,
@@ -93,6 +95,20 @@ export const saveResumeAnalysis = async (analysis: Omit<ResumeAnalysis, 'id' | '
       job_title: analysis.job_title,
       improvement_suggestions: analysis.improvement_suggestions,
       interview_questions: analysis.interview_questions,
+      analysis: JSON.stringify({
+        score: analysis.score,
+        keywords: {
+          found: analysis.keywords_found,
+          missing: analysis.keywords_missing
+        },
+        structure: {
+          strengths: analysis.structure_strengths,
+          improvements: analysis.structure_improvements
+        },
+        job_title: analysis.job_title,
+        improvement_suggestions: analysis.improvement_suggestions,
+        interview_questions: analysis.interview_questions
+      }),
       created_at: new Date().toISOString()
     })
     .select()

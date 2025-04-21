@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import ProgressTracker from "@/components/ProgressTracker";
 import AICoachAvatar from "@/components/AICoachAvatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,7 +103,7 @@ const Learn = () => {
             } else {
               console.log('Generating new learning path from cached analysis');
               try {
-                const { data: learningPath, error: learningPathError } = await supabase.functions.invoke('generate-learning-path', {
+                const { data: learningPathData, error: learningPathError } = await supabase.functions.invoke('generate-learning-path', {
                   body: {
                     missingSkills: formattedData.keywords_missing,
                     improvements: formattedData.structure_improvements,
@@ -116,10 +115,10 @@ const Learn = () => {
                   throw learningPathError;
                 }
 
-                if (learningPath && Array.isArray(learningPath)) {
-                  console.log('Generated learning path:', learningPath);
-                  setPersonalizedResources(learningPath);
-                  localStorage.setItem('learningPath', JSON.stringify(learningPath));
+                if (learningPathData && Array.isArray(learningPathData)) {
+                  console.log('Generated learning path:', learningPathData);
+                  setPersonalizedResources(learningPathData);
+                  localStorage.setItem('learningPath', JSON.stringify(learningPathData));
                 }
               } catch (error) {
                 console.error('Error generating learning path:', error);
@@ -176,7 +175,7 @@ const Learn = () => {
         } else {
           console.log('Generating new learning path for user:', user.id);
           try {
-            const { data: learningPath, error: learningPathError } = await supabase.functions.invoke('generate-learning-path', {
+            const { data: learningPathData, error: learningPathError } = await supabase.functions.invoke('generate-learning-path', {
               body: {
                 missingSkills: formattedData.keywords_missing,
                 improvements: formattedData.structure_improvements,
@@ -188,10 +187,10 @@ const Learn = () => {
               throw learningPathError;
             }
 
-            if (learningPath && Array.isArray(learningPath)) {
-              console.log('Generated learning path for user:', learningPath);
-              setPersonalizedResources(learningPath);
-              localStorage.setItem(cacheKey, JSON.stringify(learningPath));
+            if (learningPathData && Array.isArray(learningPathData)) {
+              console.log('Generated learning path for user:', learningPathData);
+              setPersonalizedResources(learningPathData);
+              localStorage.setItem(cacheKey, JSON.stringify(learningPathData));
             }
           } catch (error) {
             console.error('Error generating learning path:', error);
@@ -205,18 +204,18 @@ const Learn = () => {
   }, [user]);
 
   useEffect(() => {
+    if (personalizedResources && personalizedResources.length > 0) {
+      setIsLoadingLearningPath(false);
+    }
+  }, [personalizedResources]);
+
+  useEffect(() => {
     if (personalizedResources) {
       const completedCount = personalizedResources.filter((r: any) => r.completed).length;
       const totalCount = personalizedResources.length;
       setProgress(totalCount > 0 ? (completedCount / totalCount) * 100 : 0);
     }
   }, [personalizedResources]);
-
-  useEffect(() => {
-    if (learningPath && learningPath.length > 0) {
-      setIsLoadingLearningPath(false);
-    }
-  }, [learningPath]);
 
   const renderResourceCard = (resource: any) => (
     <Card key={resource.id} className="flex flex-col group hover:shadow-md transition-all">
@@ -296,6 +295,11 @@ const Learn = () => {
       description: "Your learning progress has been updated.",
     });
   };
+
+  const filteredResources = personalizedResources.filter(resource => {
+    if (filter === 'all') return true;
+    return resource.category === filter;
+  });
 
   if (isAuthLoading) {
     return (
