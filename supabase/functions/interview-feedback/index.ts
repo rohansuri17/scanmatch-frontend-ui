@@ -15,7 +15,7 @@ serve(async (req) => {
   try {
     // Parse request body
     const requestData = await req.json()
-    const { question, answer, context, qa_history } = requestData
+    const { question, answer, context, qa_history, question_type } = requestData
 
     // Validate required fields
     if (!question || !answer) {
@@ -29,7 +29,7 @@ serve(async (req) => {
     }
 
     // Create prompt for feedback
-    const prompt = `You are an expert technical interviewer providing feedback on interview responses.
+    const prompt = `You are an expert ${question_type} interviewer providing feedback on interview responses.
     
 Question Context: ${context || 'No context provided'}
 Question: ${question}
@@ -44,10 +44,16 @@ A: ${qa.user_answer}
 ` : ''}
 
 Provide detailed feedback on the candidate's answer, focusing on:
-1. Technical accuracy and depth
-2. Communication clarity
+1. ${question_type === 'technical' ? 'Technical accuracy and depth' : 'Behavioral response quality and relevance to the question'}
+2. Communication clarity and structure
 3. Areas for improvement
 4. Suggestions for better responses
+
+For behavioral questions, focus on:
+- How well the answer demonstrates the required behavioral competency
+- Whether the response includes specific examples or situations
+- The clarity of the situation, action, and result (if applicable)
+- How well the response addresses the question's core behavioral aspect
 
 Format the feedback in clear paragraphs with bullet points where appropriate.`
 
@@ -65,7 +71,7 @@ Format the feedback in clear paragraphs with bullet points where appropriate.`
         messages: [
           {
             role: 'system',
-            content: 'You are an expert technical interviewer providing constructive feedback on interview responses. Focus on helping the candidate improve while maintaining a supportive tone.'
+            content: `You are an expert ${question_type} interviewer providing constructive feedback on interview responses. For behavioral questions, focus on assessing how well the candidate demonstrates the required behavioral competencies through specific examples and clear communication.`
           },
           {
             role: 'user',

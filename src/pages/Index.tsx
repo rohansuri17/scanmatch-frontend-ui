@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -29,7 +28,7 @@ const Index = () => {
                       Try Free Resume Scan <ArrowRight className="ml-2" />
                     </Link>
                   </Button>
-                  <Button variant="outline" size="lg" className="text-lg py-6" asChild>
+                  <Button variant="outline" className="bg-white text-scanmatch-700 hover:bg-gray-100 text-lg py-6" size="lg" asChild>
                     <Link to="/pricing">View Pricing</Link>
                   </Button>
                 </div>
@@ -264,7 +263,7 @@ const Index = () => {
                     Start Free <ArrowRight className="ml-2" />
                   </Link>
                 </Button>
-                <Button variant="outline" className="border-white text-white hover:bg-scanmatch-500 text-lg py-6" size="lg" asChild>
+                <Button variant="outline" className="bg-white text-scanmatch-600 hover:bg-gray-100 text-lg py-6" size="lg" asChild>
                   <Link to="/pricing">View Pricing</Link>
                 </Button>
               </div>
