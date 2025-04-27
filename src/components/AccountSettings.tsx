@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, User } from 'lucide-react';
+import { Loader2, User, Shield, Mail, Key } from 'lucide-react';
 import { UserProfile } from '@/lib/types';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
 
 const AccountSettings = () => {
   const { user, updateUserEmail } = useAuth();
@@ -21,6 +23,7 @@ const AccountSettings = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
   
   // Fetch user profile
   const { data: userProfile, isLoading: isLoadingProfile } = useQuery({
@@ -28,41 +31,57 @@ const AccountSettings = () => {
     queryFn: async () => {
       if (!user?.id) return null;
       
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-        
-      if (error && error.code !== 'PGSQL_ERROR_NO_ROWS') {
-        console.error("Error fetching user profile:", error);
-        throw error;
-      }
-      
-      // If no profile exists, create one
-      if (!data) {
-        const newProfile = {
-          user_id: user.id,
-          full_name: user.user_metadata?.full_name || '',
-        };
-        
-        const { data: createdProfile, error: createError } = await supabase
+      try {
+        const { data, error } = await supabase
           .from('user_profiles')
-          .insert(newProfile)
-          .select()
+          .select('*')
+          .eq('user_id', user.id)
           .single();
           
-        if (createError) {
-          console.error("Error creating user profile:", createError);
-          throw createError;
+        if (error && error.code !== 'PGSQL_ERROR_NO_ROWS') {
+          console.error("Error fetching user profile:", error);
+          toast({
+            title: "Error fetching profile",
+            description: error.message,
+            variant: "destructive",
+          });
+          throw error;
         }
         
-        return createdProfile as UserProfile;
+        // If no profile exists, create one
+        if (!data) {
+          const newProfile = {
+            user_id: user.id,
+            full_name: user.user_metadata?.full_name || '',
+          };
+          
+          const { data: createdProfile, error: createError } = await supabase
+            .from('user_profiles')
+            .insert(newProfile)
+            .select()
+            .single();
+            
+          if (createError) {
+            console.error("Error creating user profile:", createError);
+            toast({
+              title: "Error creating profile",
+              description: createError.message,
+              variant: "destructive",
+            });
+            throw createError;
+          }
+          
+          return createdProfile as UserProfile;
+        }
+        
+        return data as UserProfile;
+      } catch (err) {
+        console.error("Profile fetch error:", err);
+        throw err;
       }
-      
-      return data as UserProfile;
     },
     enabled: !!user?.id,
+    retry: 1,
   });
   
   // Update profile mutation
@@ -80,12 +99,32 @@ const AccountSettings = () => {
         .select()
         .single();
         
-      if (error) throw error;
+      if (error) {
+        toast({
+          title: "Update Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        throw error;
+      }
+      
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.id] });
+      toast({
+        title: "Profile Updated",
+        description: "Your profile information has been saved successfully",
+      });
     },
+    onError: (error) => {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Update Failed",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
+    }
   });
   
   useEffect(() => {
@@ -100,12 +139,38 @@ const AccountSettings = () => {
     }
   }, [user, userProfile]);
 
+  // Validate email format
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  // Validate password strength
+  const validatePassword = (password: string) => {
+    if (password.length < 8) {
+      return "Password must be at least 8 characters";
+    }
+    
+    if (!/[A-Z]/.test(password)) {
+      return "Password must contain at least one uppercase letter";
+    }
+    
+    if (!/[a-z]/.test(password)) {
+      return "Password must contain at least one lowercase letter";
+    }
+    
+    if (!/[0-9]/.test(password)) {
+      return "Password must contain at least one number";
+    }
+    
+    return "";
+  };
+
   const handleUpdateEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email.trim()) {
+    if (!email.trim() || !isValidEmail(email)) {
       toast({
-        title: "Email Required",
+        title: "Invalid Email",
         description: "Please enter a valid email address",
         variant: "destructive",
       });
@@ -145,25 +210,20 @@ const AccountSettings = () => {
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!password.trim()) {
-      toast({
-        title: "Password Required",
-        description: "Please enter a new password",
-        variant: "destructive",
-      });
+    // Validate password
+    const passwordValidationError = validatePassword(password);
+    if (passwordValidationError) {
+      setPasswordError(passwordValidationError);
       return;
     }
     
     if (password !== confirmPassword) {
-      toast({
-        title: "Passwords Don't Match",
-        description: "Please ensure both passwords match",
-        variant: "destructive",
-      });
+      setPasswordError("Passwords don't match");
       return;
     }
     
     setIsChangingPassword(true);
+    setPasswordError('');
     
     try {
       const { data, error } = await supabase.auth.updateUser({ 
@@ -196,21 +256,19 @@ const AccountSettings = () => {
     e.preventDefault();
     setIsUpdatingProfile(true);
     
+    if (!fullName.trim()) {
+      toast({
+        title: "Name Required",
+        description: "Please enter your full name",
+        variant: "destructive",
+      });
+      setIsUpdatingProfile(false);
+      return;
+    }
+    
     try {
       await updateProfileMutation.mutateAsync({
         full_name: fullName,
-      });
-      
-      toast({
-        title: "Profile Updated",
-        description: "Your profile information has been saved",
-      });
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      toast({
-        title: "Update Failed",
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
-        variant: "destructive",
       });
     } finally {
       setIsUpdatingProfile(false);
@@ -219,34 +277,37 @@ const AccountSettings = () => {
   
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <User className="h-5 w-5 mr-2" />
+      <Card className="shadow-md border-0 bg-white">
+        <CardHeader className="bg-scanmatch-50 rounded-t-lg">
+          <CardTitle className="flex items-center text-scanmatch-800">
+            <User className="h-5 w-5 mr-2 text-scanmatch-600" />
             Profile Information
           </CardTitle>
           <CardDescription>
             Update your personal information
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <form onSubmit={handleUpdateProfile} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="full-name" className="text-sm font-medium">
+              <Label htmlFor="full-name" className="text-sm font-medium">
                 Full Name
-              </label>
+              </Label>
               <Input
                 id="full-name"
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Your full name"
+                className="border-gray-300 focus:border-scanmatch-500 focus:ring-scanmatch-500"
+                aria-label="Full name"
               />
             </div>
             <Button 
               type="submit" 
               disabled={isUpdatingProfile || !fullName.trim() || (fullName === userProfile?.full_name)}
               className="bg-scanmatch-600 hover:bg-scanmatch-700"
+              aria-label="Update profile information"
             >
               {isUpdatingProfile ? (
                 <>
@@ -261,31 +322,37 @@ const AccountSettings = () => {
         </CardContent>
       </Card>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Account Information</CardTitle>
+      <Card className="shadow-md border-0 bg-white">
+        <CardHeader className="bg-scanmatch-50 rounded-t-lg">
+          <CardTitle className="flex items-center text-scanmatch-800">
+            <Mail className="h-5 w-5 mr-2 text-scanmatch-600" />
+            Account Information
+          </CardTitle>
           <CardDescription>
             Update your account email address
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <form onSubmit={handleUpdateEmail} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
+              <Label htmlFor="email" className="text-sm font-medium">
                 Email Address
-              </label>
+              </Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Your email address"
+                className="border-gray-300 focus:border-scanmatch-500 focus:ring-scanmatch-500"
+                aria-label="Email address"
               />
             </div>
             <Button 
               type="submit" 
-              disabled={isUpdating || !user || email === user.email}
+              disabled={isUpdating || !user || !isValidEmail(email) || email === user.email}
               className="bg-scanmatch-600 hover:bg-scanmatch-700"
+              aria-label="Update email"
             >
               {isUpdating ? (
                 <>
@@ -300,43 +367,71 @@ const AccountSettings = () => {
         </CardContent>
       </Card>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Change Password</CardTitle>
+      <Card className="shadow-md border-0 bg-white">
+        <CardHeader className="bg-scanmatch-50 rounded-t-lg">
+          <CardTitle className="flex items-center text-scanmatch-800">
+            <Shield className="h-5 w-5 mr-2 text-scanmatch-600" />
+            Account Security
+          </CardTitle>
           <CardDescription>
             Update your account password
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <form onSubmit={handleUpdatePassword} className="space-y-4">
+            {passwordError && (
+              <Alert variant="destructive" className="text-sm py-2">
+                <AlertDescription>{passwordError}</AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
-              <label htmlFor="new-password" className="text-sm font-medium">
+              <Label htmlFor="new-password" className="text-sm font-medium">
                 New Password
-              </label>
+              </Label>
               <Input
                 id="new-password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordError('');
+                }}
                 placeholder="Enter new password"
+                className="border-gray-300 focus:border-scanmatch-500 focus:ring-scanmatch-500"
+                aria-label="New password"
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="confirm-password" className="text-sm font-medium">
+              <Label htmlFor="confirm-password" className="text-sm font-medium">
                 Confirm New Password
-              </label>
+              </Label>
               <Input
                 id="confirm-password"
                 type="password"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  setPasswordError('');
+                }}
                 placeholder="Confirm new password"
+                className="border-gray-300 focus:border-scanmatch-500 focus:ring-scanmatch-500"
+                aria-label="Confirm new password"
               />
+            </div>
+            <div className="text-xs text-gray-500 space-y-1">
+              <p>Password must:</p>
+              <ul className="list-disc pl-5">
+                <li>Be at least 8 characters long</li>
+                <li>Include at least one uppercase letter</li>
+                <li>Include at least one lowercase letter</li>
+                <li>Include at least one number</li>
+              </ul>
             </div>
             <Button 
               type="submit" 
               disabled={isChangingPassword || !password || password !== confirmPassword}
               className="bg-scanmatch-600 hover:bg-scanmatch-700"
+              aria-label="Change password"
             >
               {isChangingPassword ? (
                 <>

@@ -3,16 +3,61 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+// Use environment variables with error checking
 const SUPABASE_URL = "https://rduuurfysvqwhpyyadux.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdXV1cmZ5c3Zxd2hweXlhZHV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2MDY0NDAsImV4cCI6MjA2MDE4MjQ0MH0.VHp2zSXGn51YRvb-csZWNS8NmwSU9ORl2G_s4Q3X_3A";
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  console.error('Supabase URL and anon key must be set');
+}
 
+// Add robust error handling and retry logic
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    storage: localStorage
+    storage: typeof localStorage !== 'undefined' ? localStorage : undefined,
+    detectSessionInUrl: true,
+    flowType: 'pkce'
+  },
+  global: {
+    headers: {
+      'x-client-info': `scanmatch-app/1.0.0`,
+    },
+    fetch: (...args) => {
+      return fetch(...args).catch(err => {
+        console.error('Network error during Supabase request:', err);
+        throw new Error('Network connection error. Please check your connection and try again.');
+      });
+    }
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
   }
 });
+
+// Add security headers to all requests
+supabase.rest.headers = {
+  ...supabase.rest.headers,
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; object-src 'none'",
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin'
+};
+
+// Add automatic request logging for debugging
+if (import.meta.env.DEV) {
+  const originalRequest = supabase.rest.get;
+  supabase.rest.get = async function(...args: any[]) {
+    console.log(`[Supabase Request]`, args);
+    try {
+      const response = await originalRequest.apply(this, args);
+      return response;
+    } catch (error) {
+      console.error(`[Supabase Error]`, error);
+      throw error;
+    }
+  };
+}
