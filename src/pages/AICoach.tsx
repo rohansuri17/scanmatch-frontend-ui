@@ -1,5 +1,4 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import AIResumeCoach from '@/components/AIResumeCoach';
@@ -8,25 +7,122 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Brain, FileText, MessageCircle, Sparkles } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
+import { toast } from '@/components/ui/use-toast';
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: string;
+}
 
 const AICoach = () => {
   const { user } = useAuth();
   const { tier, canAccessAICoach } = useSubscription();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Check if we have stored resume text from the scan results
-    const storedResumeText = sessionStorage.getItem('coachResumeText');
-    const storedJobDescription = sessionStorage.getItem('coachJobDescription');
-    
-    if (storedResumeText && storedJobDescription) {
-      // Store in local storage for AI coach access
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('aiCoachResumeText', storedResumeText);
-        localStorage.setItem('aiCoachJobDescription', storedJobDescription);
-      }
+    if (user) {
+      loadChatHistory();
     }
-  }, []);
-  
+  }, [user]);
+
+  const loadChatHistory = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('ai_coach_sessions')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: true });  // Load all sessions in order
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        // Get the most recent session's messages
+        const latestSession = data[data.length - 1];
+        setMessages(latestSession.messages || []);
+      } else {
+        // No existing chat, start with welcome message
+        setMessages([{
+          id: 'welcome',
+          role: 'assistant',
+          content: 'Hello! I\'m your AI Career Coach. How can I help you today? You can ask me about:\n\n• Resume reviews and improvements\n• Interview preparation and practice\n• Career path planning\n• Skill development recommendations',
+          timestamp: new Date().toISOString()
+        }]);
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load chat history",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input,
+      timestamp: new Date().toISOString()
+    };
+
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    setInput('');
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-coach-session', {
+        body: {
+          user_id: user?.id,
+          messages: updatedMessages
+        }
+      });
+
+      if (error) throw error;
+
+      const assistantMessage: Message = {
+        id: data.id,
+        role: 'assistant',
+        content: data.content,
+        timestamp: new Date().toISOString()
+      };
+
+      const finalMessages = [...updatedMessages, assistantMessage];
+      setMessages(finalMessages);
+
+      // Save the entire conversation to the database
+      const { error: saveError } = await supabase
+        .from('ai_coach_sessions')
+        .upsert({
+          user_id: user?.id,
+          messages: finalMessages,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (saveError) throw saveError;
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />

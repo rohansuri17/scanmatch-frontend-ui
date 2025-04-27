@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ type Message = {
   id: string;
   role: 'system' | 'user' | 'assistant';
   content: string;
-  timestamp: Date;
+  timestamp: string;
 };
 
 const AIResumeCoach = () => {
@@ -23,39 +24,82 @@ const AIResumeCoach = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [resumeText, setResumeText] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Initialize with welcome message
-    if (isInitializing) {
+    // Initialize with welcome message and fetch resume
+    if (isInitializing && user) {
       setIsInitializing(false);
       
-      const welcomeMessage: Message = {
-        id: '1',
-        role: 'system',
-        content: "Hello! I'm your AI Resume Coach. I can help you improve your resume, prepare for interviews, and optimize your job application. What would you like help with today?",
-        timestamp: new Date(),
+      // Fetch chat history and resume
+      const initializeChat = async () => {
+        try {
+          // Fetch most recent resume
+          const { data: resumeData, error: resumeError } = await supabase
+            .from('resume_analyses')
+            .select('resume_text')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (resumeError) throw resumeError;
+          if (resumeData?.resume_text) {
+            setResumeText(resumeData.resume_text);
+          }
+
+          // Fetch chat history
+          const { data: chatData, error: chatError } = await supabase
+            .from('ai_coach_sessions')
+            .select('messages')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (chatError && chatError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+            throw chatError;
+          }
+
+          if (chatData?.messages) {
+            setMessages(chatData.messages);
+          } else {
+            // No existing chat, start with welcome message
+            const welcomeMessage: Message = {
+              id: '1',
+              role: 'system',
+              content: "Hello! I'm your AI Resume Coach. I can help you improve your resume, prepare for interviews, and optimize your job application. What would you like help with today?",
+              timestamp: new Date().toISOString(),
+            };
+            
+            setMessages([welcomeMessage]);
+
+            if (resumeData?.resume_text) {
+              // Add message about having access to resume
+              const contextMessage: Message = {
+                id: '2',
+                role: 'system',
+                content: "I have access to your most recent resume. I can help you improve it, suggest better ways to present your experience, or help you tailor it for specific job opportunities. What would you like to focus on?",
+                timestamp: new Date().toISOString(),
+              };
+              
+              setMessages(prev => [...prev, contextMessage]);
+            }
+          }
+        } catch (error) {
+          console.error('Error initializing chat:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load chat history",
+            variant: "destructive",
+          });
+        }
       };
-      
-      setMessages([welcomeMessage]);
-      
-      // Check if we have stored resume and job description from previous scan
-      const resumeText = localStorage.getItem('aiCoachResumeText');
-      const jobDescription = localStorage.getItem('aiCoachJobDescription');
-      
-      if (resumeText && jobDescription && canAccessAICoach) {
-        // If we have both, send system message about context
-        const contextMessage: Message = {
-          id: '2',
-          role: 'system',
-          content: "I see you've scanned a resume earlier. I have access to both your resume and the job description you're targeting. Would you like specific advice on how to better align your resume with this job opportunity?",
-          timestamp: new Date(Date.now() + 100), // Slightly after welcome message
-        };
-        
-        setMessages(prev => [...prev, contextMessage]);
-      }
+
+      initializeChat();
     }
-  }, [isInitializing, canAccessAICoach]);
+  }, [isInitializing, user]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -100,22 +144,20 @@ const AIResumeCoach = () => {
       id: Date.now().toString(),
       role: 'user',
       content: messageContent,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
     };
     
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInput('');
     setIsLoading(true);
     
     try {
-      // Get resume and job description from localStorage if available
-      const resumeText = localStorage.getItem('aiCoachResumeText') || '';
-      const jobDescription = localStorage.getItem('aiCoachJobDescription') || '';
-      
       const { data, error } = await supabase.functions.invoke('ai-resume-coach', {
         body: { 
           message: messageContent,
-          userId: user.id
+          userId: user.id,
+          resumeText: resumeText
         },
       });
       
@@ -125,28 +167,80 @@ const AIResumeCoach = () => {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: data.message || "I'm sorry, I couldn't process your request. Please try again.",
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       };
       
-      setMessages(prev => [...prev, assistantMessage]);
+      const finalMessages = [...updatedMessages, assistantMessage];
+      setMessages(finalMessages);
+
+      // Save the entire conversation to the database
+      const { error: saveError } = await supabase
+        .from('ai_coach_sessions')
+        .upsert({
+          user_id: user.id,
+          messages: finalMessages,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (saveError) throw saveError;
+
     } catch (error) {
-      console.error('Error calling AI Resume Coach:', error);
+      console.error('Error sending message:', error);
       toast({
         title: "Error",
-        description: "Unable to get a response from the AI. Please try again.",
+        description: "Failed to send message",
         variant: "destructive",
       });
-      
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: "I'm sorry, I encountered an error. Please try again in a moment.",
-        timestamp: new Date(),
-      };
-      
-      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const startNewChat = async () => {
+    const welcomeMessage: Message = {
+      id: '1',
+      role: 'system',
+      content: "Hello! I'm your AI Resume Coach. I can help you improve your resume, prepare for interviews, and optimize your job application. What would you like help with today?",
+      timestamp: new Date().toISOString(),
+    };
+
+    setMessages([welcomeMessage]);
+
+    if (resumeText) {
+      const contextMessage: Message = {
+        id: '2',
+        role: 'system',
+        content: "I have access to your most recent resume. I can help you improve it, suggest better ways to present your experience, or help you tailor it for specific job opportunities. What would you like to focus on?",
+        timestamp: new Date().toISOString(),
+      };
+      
+      setMessages(prev => [...prev, contextMessage]);
+    }
+
+    // Save the new chat to the database
+    if (user) {
+      try {
+        const { error } = await supabase
+          .from('ai_coach_sessions')
+          .upsert({
+            user_id: user.id,
+            messages: resumeText ? [welcomeMessage, contextMessage] : [welcomeMessage],
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id'
+          });
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error saving new chat:', error);
+        toast({
+          title: "Error",
+          description: "Failed to start new chat",
+          variant: "destructive",
+        });
+      }
     }
   };
   
@@ -154,10 +248,21 @@ const AIResumeCoach = () => {
     return (
       <Card className="h-full flex flex-col">
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Bot className="h-5 w-5 mr-2" />
-            AI Resume Coach
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center">
+              <Bot className="h-5 w-5 mr-2" />
+              AI Resume Coach
+            </CardTitle>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={startNewChat}
+              className="flex items-center gap-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              New Chat
+            </Button>
+          </div>
           <CardDescription>
             Get personalized resume advice and job application tips
           </CardDescription>
@@ -212,10 +317,21 @@ const AIResumeCoach = () => {
   return (
     <Card className="h-full flex flex-col">
       <CardHeader>
-        <CardTitle className="flex items-center">
-          <Bot className="h-5 w-5 mr-2" />
-          AI Resume Coach
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center">
+            <Bot className="h-5 w-5 mr-2" />
+            AI Resume Coach
+          </CardTitle>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={startNewChat}
+            className="flex items-center gap-2"
+          >
+            <Sparkles className="h-4 w-4" />
+            New Chat
+          </Button>
+        </div>
         <CardDescription>
           Get personalized resume advice and job application tips
         </CardDescription>
@@ -259,7 +375,7 @@ const AIResumeCoach = () => {
                   message.role === 'user' ? 'text-right' : ''
                 }`}
               >
-                {message.timestamp.toLocaleTimeString([], {
+                {new Date(message.timestamp).toLocaleTimeString([], {
                   hour: '2-digit',
                   minute: '2-digit',
                 })}

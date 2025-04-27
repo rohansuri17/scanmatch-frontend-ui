@@ -14,7 +14,10 @@ export default defineConfig(async ({ mode }) => {
       port: 8080,
     },
     plugins: [
-      react(),
+      react({
+        jsxImportSource: 'react',
+        plugins: [['@swc/plugin-react', { runtime: 'automatic' }]],
+      }),
       mode === 'development' && tagger,
     ].filter(Boolean),
     resolve: {
