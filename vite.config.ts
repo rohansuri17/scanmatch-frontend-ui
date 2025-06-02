@@ -11,7 +11,9 @@ export default defineConfig(async ({ mode }) => {
   if (mode === 'development') {
     try {
       const tagger = await componentTagger();
-      plugins.push(tagger);
+      if (tagger) {
+        plugins.push(tagger);
+      }
     } catch (error) {
       console.warn('Failed to load component tagger:', error);
     }
