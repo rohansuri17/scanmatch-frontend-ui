@@ -1,3 +1,4 @@
+
 /** @jsxImportSource react */
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { Bot, Send, Lock, Sparkles, User, Loader2, GraduationCap, BookOpen, FileText } from 'lucide-react';
 
@@ -42,42 +43,34 @@ const AIResumeCoach = () => {
 
       setIsInitializing(true);
       try {
-        // Get the most recent resume analysis
+        // Get the most recent resume analysis - using resume_analyses table
         const { data: resumeData, error: resumeError } = await supabase
           .from('resume_analyses')
-          .select('resume_text')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (resumeError && resumeError.code !== 'PGRST116') throw resumeError;
-        if (resumeData?.resume_text) {
-          setResumeText(resumeData.resume_text);
-        }
-
-        // Get the most recent chat session
-        const { data: sessionData, error: sessionError } = await supabase
-          .from('ai_coach_sessions')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
 
-        if (sessionError && sessionError.code !== 'PGRST116') throw sessionError;
-        
-        if (sessionData?.messages) {
-          setMessages(sessionData.messages);
-        } else {
-          // Set welcome message if no existing chat
-          setMessages([{
-            id: '0',
-            role: 'assistant',
-            content: 'Hello! I\'m your AI Career Coach. I can help you improve your resume, prepare for interviews, and provide job search advice. What would you like help with?',
-            timestamp: new Date().toISOString()
-          }]);
+        if (resumeError && resumeError.code !== 'PGRST116') {
+          console.error('Resume data error:', resumeError);
         }
+        
+        // For now, we'll use a placeholder since resume_text doesn't exist in resume_analyses
+        if (resumeData) {
+          setResumeText('Resume data available');
+        }
+
+        // Initialize with welcome message
+        const welcomeMessage: Message = {
+          id: '0',
+          role: 'assistant',
+          content: 'Hello! I\'m your AI Career Coach. I can help you improve your resume, prepare for interviews, and provide job search advice. What would you like help with?',
+          timestamp: new Date().toISOString()
+        };
+
+        setMessages([welcomeMessage]);
+
       } catch (error) {
         console.error('Error initializing chat:', error);
         toast({
@@ -147,23 +140,11 @@ const AIResumeCoach = () => {
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: data.content.summary,
+        content: data?.content?.summary || 'I apologize, but I encountered an issue processing your request. Please try again.',
         timestamp: new Date().toISOString()
       };
 
       setMessages(prev => [...prev, assistantMessage]);
-
-      // Save assistant message
-      const { error: updateError } = await supabase
-        .from('ai_coach_sessions')
-        .upsert({
-          user_id: user.id,
-          messages: [...messages, userMessage, assistantMessage],
-          resume_text: resumeText,
-          created_at: new Date().toISOString()
-        });
-
-      if (updateError) throw updateError;
 
     } catch (error) {
       console.error('Error in chat:', error);
@@ -201,29 +182,6 @@ const AIResumeCoach = () => {
     }
 
     setMessages(messages);
-
-    // Save the new chat to the database
-    if (user) {
-      try {
-        const { error } = await supabase
-          .from('ai_coach_sessions')
-          .upsert({
-            user_id: user.id,
-            messages,
-            resume_text: resumeText,
-            created_at: new Date().toISOString()
-          });
-
-        if (error) throw error;
-      } catch (error) {
-        console.error('Error saving new chat:', error);
-        toast({
-          title: "Error",
-          description: "Failed to start new chat",
-          variant: "destructive",
-        });
-      }
-    }
   };
 
   // Show loading state while auth and subscription are being checked
