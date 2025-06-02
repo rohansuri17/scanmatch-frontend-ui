@@ -1,0 +1,132 @@
+
+/* Additional utility classes for JobCoach.AI */
+
+/* Container with custom padding for consistent layout */
+.container-custom {
+  width: 100%;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container-custom {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-custom {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* Progress indicator for learning path */
+.step-indicator {
+  position: relative;
+  padding-left: 2rem;
+}
+
+.step-indicator::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: rgba(156, 163, 175, 0.5);
+}
+
+.step-indicator::after {
+  content: '';
+  position: absolute;
+  left: -0.375rem;
+  top: 0.375rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 9999px;
+  background-color: rgb(155, 135, 245);
+}
+
+.step-complete::after {
+  background-color: rgb(74, 222, 128);
+}
+
+/* Badge indicators */
+.badge-item {
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.badge-item.achieved {
+  background-color: rgba(74, 222, 128, 0.1);
+}
+
+.badge-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0;
+  background-color: rgba(155, 135, 245, 0.1);
+  transition: width 0.3s ease;
+}
+
+.badge-item:not(.achieved)::before {
+  width: var(--progress-width, 0%);
+}
+
+/* Pulse animation for new items */
+.pulse-animation {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Celebration animation for achievements */
+.celebration-animation {
+  animation: celebration 0.5s ease-out;
+}
+
+@keyframes celebration {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Streak indicator */
+.streak-flame {
+  color: #f59e0b;
+  transform-origin: center bottom;
+}
+
+.streak-flame.active {
+  animation: flame 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes flame {
+  0% {
+    transform: scale(1) rotate(-2deg);
+  }
+  100% {
+    transform: scale(1.1) rotate(2deg);
+  }
+}

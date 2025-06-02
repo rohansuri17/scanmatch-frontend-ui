@@ -1,0 +1,5 @@
+
+project_id = "rduuurfysvqwhpyyadux"
+
+[functions.resume-scan]
+verify_jwt = false
