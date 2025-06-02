@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,13 +13,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { saveResumeAnalysis, saveResumeScanData, checkIPScanLimit, incrementIPScanCount } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from '@/hooks/useSubscription';
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist';
 import AICoachAvatar from "@/components/AICoachAvatar";
 import ProgressTracker from "@/components/ProgressTracker";
 import ResumeAnalysisHistory from "@/components/ResumeAnalysisHistory";
 import FreeScanCounter from '@/components/FreeScanCounter';
 
-GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.mjs';
+// Set up PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 const Scan = () => {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -73,34 +75,61 @@ const Scan = () => {
 
   const readFileAsText = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
+      console.log('📄 Starting file read for:', file.name, 'Type:', file.type);
+      
       if (file.type === 'text/plain') {
+        console.log('📝 Processing as text file');
         const reader = new FileReader();
-        reader.onload = e => resolve(e.target?.result as string);
-        reader.onerror = reject;
+        reader.onload = e => {
+          const text = e.target?.result as string;
+          console.log('✅ Text file read successfully, length:', text.length);
+          resolve(text);
+        };
+        reader.onerror = (error) => {
+          console.error('❌ Text file read error:', error);
+          reject(new Error('Failed to read text file'));
+        };
         reader.readAsText(file);
         return;
       }
       
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const typedArray = new Uint8Array(e.target?.result as ArrayBuffer);
-          const pdf = await getDocument({ data: typedArray }).promise;
-  
-          let text = '';
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const content = await page.getTextContent();
-            text += content.items.map((item: any) => item.str).join(' ') + '\n';
+      if (file.type === 'application/pdf') {
+        console.log('📋 Processing as PDF file');
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            console.log('📋 PDF ArrayBuffer loaded, size:', (e.target?.result as ArrayBuffer)?.byteLength);
+            const typedArray = new Uint8Array(e.target?.result as ArrayBuffer);
+            
+            console.log('📋 Loading PDF document...');
+            const loadingTask = pdfjsLib.getDocument({ data: typedArray });
+            const pdf = await loadingTask.promise;
+            console.log('📋 PDF loaded successfully, pages:', pdf.numPages);
+    
+            let text = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+              console.log(`📋 Processing page ${i}/${pdf.numPages}`);
+              const page = await pdf.getPage(i);
+              const content = await page.getTextContent();
+              const pageText = content.items.map((item: any) => item.str).join(' ') + '\n';
+              text += pageText;
+            }
+    
+            console.log('✅ PDF processing complete, total text length:', text.trim().length);
+            resolve(text.trim());
+          } catch (err) {
+            console.error('❌ PDF processing error:', err);
+            reject(new Error(`Failed to process PDF: ${err.message || 'Unknown error'}`));
           }
-  
-          resolve(text.trim());
-        } catch (err) {
-          reject(err);
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsArrayBuffer(file);
+        };
+        reader.onerror = (error) => {
+          console.error('❌ PDF file read error:', error);
+          reject(new Error('Failed to read PDF file'));
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        reject(new Error('Unsupported file type'));
+      }
     });
   };
 
